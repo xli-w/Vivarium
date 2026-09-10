@@ -241,6 +241,13 @@ void readSensors() {
           sensors.upperHumidity, sensors.upperOk, sensors.upperUpdatedAt);
   readSht(sht4Lower, cfg::TCA_CH_LOWER, sensors.lowerTemp,
           sensors.lowerHumidity, sensors.lowerOk, sensors.lowerUpdatedAt);
+
+  Serial.printf("[Sensors] Ext DHT11: %s (%.1f C, %.1f%%) | Upper SHT: %s | Lower SHT: %s | Soil: %d (%.1f%%)\n",
+                sensors.externalOk ? "OK" : "FAIL",
+                sensors.externalTemp, sensors.externalHumidity,
+                sensors.upperOk ? "OK" : "FAIL",
+                sensors.lowerOk ? "OK" : "FAIL",
+                sensors.soilRaw, sensors.soilMoisture);
 }
 
 void readFastInterlocks() {
@@ -323,7 +330,10 @@ void publishTelemetry() {
   d["fanPwm"] = outputs.fan;
   d["drainagePump"] = outputs.drainagePump;
   d["foodServoActive"] = outputs.foodServoActive;
-  publishJson("main/telemetry", d);
+  const bool ok = publishJson("main/telemetry", d);
+  if (ok) {
+    Serial.printf("[Telemetry] Published seq #%u to vivarium/main/telemetry\n", telemetrySequence);
+  }
 }
 
 void applyCommand(JsonDocument& d) {
@@ -364,18 +374,47 @@ void mqttCallback(char* /*topic*/, byte* payload, unsigned int length) {
   if (deserializeJson(d, payload, length) == DeserializationError::Ok) applyCommand(d);
 }
 
+const char* mqttStateName(int state) {
+  switch (state) {
+    case -4: return "CONNECTION_TIMEOUT (host unreachable / firewall / wrong IP)";
+    case -3: return "CONNECTION_LOST";
+    case -2: return "CONNECT_FAILED (broker refused connection)";
+    case -1: return "DISCONNECTED";
+    case 0: return "CONNECTED";
+    case 1: return "BAD_PROTOCOL";
+    case 2: return "BAD_CLIENT_ID";
+    case 3: return "UNAVAILABLE";
+    case 4: return "BAD_CREDENTIALS";
+    case 5: return "UNAUTHORIZED";
+    default: return "UNKNOWN";
+  }
+}
+
 void wifiService() {
   if (!credentialsConfigured()) {
+    if (runtime.wifi) {
+      Serial.println("[WiFi] Credentials not configured!");
+    }
     runtime.wifi = false;
     return;
   }
   if (WiFi.status() == WL_CONNECTED) {
+    if (!runtime.wifi) {
+      Serial.printf("[WiFi] Connected! IP: %s | Gateway: %s | RSSI: %d dBm\n",
+                    WiFi.localIP().toString().c_str(),
+                    WiFi.gatewayIP().toString().c_str(),
+                    WiFi.RSSI());
+    }
     runtime.wifi = true;
     return;
+  }
+  if (runtime.wifi) {
+    Serial.printf("[WiFi] Lost connection (status=%d). Will reconnect...\n", WiFi.status());
   }
   runtime.wifi = false;
   if (millis() - runtime.lastWifiAttempt < cfg::WIFI_RECONNECT_INTERVAL_MS) return;
   runtime.lastWifiAttempt = millis();
+  Serial.printf("[WiFi] Connecting to SSID: '%s' ...\n", cfg::WIFI_SSID);
   WiFi.begin(cfg::WIFI_SSID, cfg::WIFI_PASSWORD);
 }
 
@@ -391,20 +430,36 @@ void mqttService() {
         now - runtime.lastMqttSubscribeAttempt >= cfg::MQTT_RECONNECT_INTERVAL_MS) {
       runtime.lastMqttSubscribeAttempt = now;
       runtime.commandSubscribed = mqtt.subscribe("vivarium/main/command", 1);
+      if (runtime.commandSubscribed) {
+        Serial.println("[MQTT] Subscribed to vivarium/main/command");
+      }
     }
     runtime.mqtt = runtime.commandSubscribed;
     return;
+  }
+  if (runtime.mqtt) {
+    Serial.printf("[MQTT] Disconnected from broker (rc=%d: %s)\n",
+                  mqtt.state(), mqttStateName(mqtt.state()));
   }
   runtime.mqtt = false;
   runtime.commandSubscribed = false;
   if (millis() - runtime.lastMqttAttempt < cfg::MQTT_RECONNECT_INTERVAL_MS) return;
   runtime.lastMqttAttempt = millis();
   String clientId = String(cfg::DEVICE_ID) + "-" + String(runtime.bootId, HEX);
+  Serial.printf("[MQTT] Connecting to %s:%u (user: '%s', client: '%s') ...\n",
+                cfg::MQTT_HOST, cfg::MQTT_PORT, cfg::MQTT_USER, clientId.c_str());
   if (mqtt.connect(clientId.c_str(), cfg::MQTT_USER, cfg::MQTT_PASSWORD)) {
+    Serial.println("[MQTT] Connection established!");
     clearRetainedStatus();
     runtime.lastMqttSubscribeAttempt = millis();
     runtime.commandSubscribed = mqtt.subscribe("vivarium/main/command", 1);
     runtime.mqtt = runtime.commandSubscribed;
+    if (runtime.commandSubscribed) {
+      Serial.println("[MQTT] Subscribed to vivarium/main/command");
+    }
+  } else {
+    Serial.printf("[MQTT] Connection failed! rc=%d (%s)\n",
+                  mqtt.state(), mqttStateName(mqtt.state()));
   }
 }
 
