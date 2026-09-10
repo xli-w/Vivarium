@@ -1,4 +1,4 @@
-# TERRA v7
+# Vivarium
 
 TERRA is a three-device monitoring, supervision, and local-control system for a vivarium or terrarium. The system is intentionally layered: the main ESP32-S3 keeps the enclosure safe and climate control local, the independent ESP32 supervisor checks the main controller, and the Raspberry Pi provides storage, alerting, and a protected LAN API.
 
