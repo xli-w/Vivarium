@@ -34,6 +34,9 @@ constexpr uint8_t PIN_FOOD_SERVO = 16;
 constexpr uint8_t PIN_ALARM = 17;
 constexpr uint8_t PIN_STATUS_LED = 18;
 
+constexpr uint8_t PWM_CH_FAN = 0;
+constexpr uint8_t PWM_CH_SERVO = 1;
+
 // ===== Signal polarity =====
 constexpr bool RESERVOIR_LOW_ACTIVE = true;
 constexpr bool DRAINAGE_HIGH_ACTIVE = true;

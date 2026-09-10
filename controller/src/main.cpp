@@ -118,7 +118,12 @@ void setDrainagePump(bool on) {
 void setFan(uint8_t pwm) {
   if (sensors.doorOpen) pwm = 0;
   outputs.fan = pwm;
-  ledcWrite(cfg::PIN_FAN_PWM, cfg::OUTPUT_ACTIVE_HIGH ? pwm : 255 - pwm);
+  const uint32_t duty = cfg::OUTPUT_ACTIVE_HIGH ? pwm : 255 - pwm;
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcWrite(cfg::PIN_FAN_PWM, duty);
+#else
+  ledcWrite(cfg::PWM_CH_FAN, duty);
+#endif
 }
 
 uint32_t servoDuty(uint8_t degrees) {
@@ -128,7 +133,11 @@ uint32_t servoDuty(uint8_t degrees) {
 }
 
 void setServo(uint8_t degrees) {
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
   ledcWrite(cfg::PIN_FOOD_SERVO, servoDuty(degrees));
+#else
+  ledcWrite(cfg::PWM_CH_SERVO, servoDuty(degrees));
+#endif
 }
 
 void startFeed() {
@@ -538,8 +547,15 @@ void safeOutputsAtBoot() {
   writeOutput(cfg::PIN_DRAINAGE_PUMP, false);
   writeOutput(cfg::PIN_ALARM, false);
   writeOutput(cfg::PIN_STATUS_LED, false);
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
   ledcAttach(cfg::PIN_FAN_PWM, 25000, 8);
   ledcAttach(cfg::PIN_FOOD_SERVO, 50, 12);
+#else
+  ledcSetup(cfg::PWM_CH_FAN, 25000, 8);
+  ledcAttachPin(cfg::PIN_FAN_PWM, cfg::PWM_CH_FAN);
+  ledcSetup(cfg::PWM_CH_SERVO, 50, 12);
+  ledcAttachPin(cfg::PIN_FOOD_SERVO, cfg::PWM_CH_SERVO);
+#endif
   setFan(0);
   setServo(cfg::SERVO_REST_DEG);
 }
@@ -566,6 +582,7 @@ void setup() {
   WiFi.setAutoReconnect(true);
   WiFi.persistent(false);
 
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
   esp_task_wdt_config_t watchdog = {
       .timeout_ms = 10 * 1000,
       .idle_core_mask = 0,
@@ -573,6 +590,10 @@ void setup() {
   };
   esp_task_wdt_init(&watchdog);
   esp_task_wdt_add(NULL);
+#else
+  esp_task_wdt_init(10, true);
+  esp_task_wdt_add(NULL);
+#endif
 
   readSensors();
   controlLoop();
