@@ -589,7 +589,7 @@ void buildPageOverview(lv_obj_t* parent) {
   label(cydCard, "EXTERNAL AMBIENT", &lv_font_montserrat_10, CYAN, 8, 6);
   refs.ownTemp = label(cydCard, "-- °C", &lv_font_montserrat_24, TEXT, 8, 22);
   refs.ownHum = label(cydCard, "-- % RH", &lv_font_montserrat_12, MUTED, 8, 54);
-  refs.ownStatus = label(cydCard, "SHT4x OK", &lv_font_montserrat_10, OK, 88, 56);
+  refs.ownStatus = label(cydCard, "DHT11 OK", &lv_font_montserrat_10, OK, 88, 56);
 
   lv_obj_t* mainCard = card(parent, 163, 2, 153, 78);
   label(mainCard, "MAIN CHAMBER AVG", &lv_font_montserrat_10, SKY, 8, 6);
@@ -623,7 +623,7 @@ void buildPageOverview(lv_obj_t* parent) {
 
 void buildPageClimate(lv_obj_t* parent) {
   lv_obj_t* left = card(parent, 4, 2, 153, 168);
-  label(left, "EXTERNAL AMBIENT SHT4x", &lv_font_montserrat_10, CYAN, 8, 6);
+  label(left, "EXTERNAL AMBIENT DHT11", &lv_font_montserrat_10, CYAN, 8, 6);
   refs.climOwnTemp = label(left, "-- °C", &lv_font_montserrat_24, TEXT, 8, 22);
   refs.climOwnHum = label(left, "-- % RH", &lv_font_montserrat_14, MUTED, 8, 52);
   refs.climOwnStatus = label(left, "Range: VALID", &lv_font_montserrat_10, OK, 8, 80);
@@ -651,7 +651,7 @@ void buildPageSafety(lv_obj_t* parent) {
 
   refs.checkHb = label(matrix, "Heartbeat: OK", &lv_font_montserrat_10, OK, 8, 20);
   refs.checkTelem = label(matrix, "Telemetry: OK", &lv_font_montserrat_10, OK, 160, 20);
-  refs.checkSht = label(matrix, "Ext SHT4x: OK", &lv_font_montserrat_10, OK, 8, 36);
+  refs.checkSht = label(matrix, "Ext DHT11: OK", &lv_font_montserrat_10, OK, 8, 36);
   refs.checkRange = label(matrix, "Plausibility: PASS", &lv_font_montserrat_10, OK, 160, 36);
   refs.checkDelta = label(matrix, "Ref Only: OK", &lv_font_montserrat_10, OK, 8, 52);
   refs.checkGrad = label(matrix, "Gradient: PASS", &lv_font_montserrat_10, OK, 160, 52);
@@ -753,7 +753,7 @@ void updateDynamic() {
     if (refs.ownTemp) lv_label_set_text(refs.ownTemp, fmt(ownTemp, " °C").c_str());
     if (refs.ownHum)  lv_label_set_text(refs.ownHum, (fmt(ownHum, "%") + " RH").c_str());
     if (refs.ownStatus) {
-      lv_label_set_text(refs.ownStatus, shtOk ? "SHT4x OK" : "SHT4x ERR");
+      lv_label_set_text(refs.ownStatus, shtOk ? "DHT11 OK" : "DHT11 ERR");
       lv_obj_set_style_text_color(refs.ownStatus, c(shtOk ? OK : CRIT), 0);
     }
 
@@ -898,7 +898,7 @@ void updateDynamic() {
       lv_obj_set_style_text_color(refs.checkTelem, c(telemFresh || supcfg::DISPLAY_TEST_MODE ? OK : WARN), 0);
     }
     if (refs.checkSht) {
-      lv_label_set_text(refs.checkSht, shtOk ? "Ext SHT4x: OK" : "Ext SHT4x: FAULT");
+      lv_label_set_text(refs.checkSht, shtOk ? "Ext DHT11: OK" : "Ext DHT11: FAULT");
       lv_obj_set_style_text_color(refs.checkSht, c(shtOk ? OK : CRIT), 0);
     }
     if (refs.checkRange) {

@@ -34,6 +34,7 @@ inline const char* stateName(SystemState s) {
 enum class AlarmCode : uint8_t {
   NONE,
   SENSOR_FAULT,
+  EXTERNAL_SENSOR_FAULT,
   WATER_LOW,
   DRAINAGE_TIMEOUT,
   DOOR_OPEN,
@@ -47,6 +48,7 @@ enum class AlarmCode : uint8_t {
 inline const char* alarmName(AlarmCode a) {
   switch (a) {
     case AlarmCode::SENSOR_FAULT: return "SENSOR_FAULT";
+    case AlarmCode::EXTERNAL_SENSOR_FAULT: return "EXTERNAL_SENSOR_FAULT";
     case AlarmCode::WATER_LOW: return "WATER_LOW";
     case AlarmCode::DRAINAGE_TIMEOUT: return "DRAINAGE_TIMEOUT";
     case AlarmCode::DOOR_OPEN: return "DOOR_OPEN";

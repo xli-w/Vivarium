@@ -20,8 +20,9 @@ Commission in stages. Do not connect pumps, heater, or other high-current loads 
 - [ ] Verify common ground, regulated logic power, and separate suitable power for pumps, heater driver, and servo.
 - [ ] Verify flyback protection for inductive loads and a correctly rated relay/SSR for the heater.
 - [ ] Verify an independent hardware thermal cutoff for the heater.
-- [ ] Verify the TCA9548A at address `0x70` and channels 2 external, 0 upper, 1 lower.
-- [ ] Verify SHT4x wiring on the I2C bus: SDA GPIO 8, SCL GPIO 9.
+- [ ] Verify the external DHT11 data line on GPIO 2, with a shared ground and the required pull-up.
+- [ ] Verify the TCA9548A at address `0x70` and channels 0 upper, 1 lower.
+- [ ] Verify upper/lower SHT4x wiring on the I2C bus: SDA GPIO 8, SCL GPIO 9.
 - [ ] Verify soil input GPIO 1, reservoir GPIO 6, drainage GPIO 7, and door GPIO 10.
 - [ ] Verify actuator outputs GPIO 11 through 18 against the wiring table in [Architecture](ARCHITECTURE.md).
 - [ ] Confirm the configured `OUTPUT_ACTIVE_HIGH`, `DOOR_OPEN_ACTIVE`, `RESERVOIR_LOW_ACTIVE`, and `DRAINAGE_HIGH_ACTIVE` values match the installed hardware.
@@ -30,7 +31,8 @@ Commission in stages. Do not connect pumps, heater, or other high-current loads 
 
 - [ ] Power the controller with actuators disconnected.
 - [ ] Confirm safe boot leaves pumps, heater, fan, drainage pump, alarm, and servo in their safe states.
-- [ ] Confirm all three SHT4x devices initialise independently.
+- [ ] Confirm the DHT11 provides valid temperature/humidity readings.
+- [ ] Confirm both SHT4x devices initialise independently.
 - [ ] Confirm the soil reading changes across dry and wet reference samples; update `SOIL_DRY` and `SOIL_WET` if needed.
 - [ ] Confirm reservoir-low, drainage-high, and door-open readings have the expected polarity.
 - [ ] Connect one actuator at a time through its driver and verify the reported state matches the physical state.
@@ -44,7 +46,8 @@ Commission in stages. Do not connect pumps, heater, or other high-current loads 
 - [ ] Hold drainage high through the timeout; the pump must stop and remain locked out until the level clears.
 - [ ] Open the door; mister, fogger, fan, and heater must stop and `DOOR_OPEN` must be reported.
 - [ ] Force a temperature at or above 30 C; climate outputs must stop and the emergency fan must run at 255.
-- [ ] Disconnect each climate sensor in turn; climate outputs must remain off and `SENSOR_FAULT` must be reported.
+- [ ] Disconnect either upper/lower SHT4x sensor; climate outputs must remain off and `SENSOR_FAULT` must be reported.
+- [ ] Disconnect the external DHT11; `EXTERNAL_SENSOR_FAULT` must be reported while upper/lower climate control remains available.
 - [ ] Verify mister maximum runtime and cooldown, then verify the fogger begins one second into a mist cycle, runs no longer than five seconds, and cannot start unless the mister is active or stopped within the five-second post-mist wetting window.
 - [ ] Verify heater maximum runtime, minimum off time, and lockout behavior.
 - [ ] Verify feeding movement, rest position, and one-hour cooldown.

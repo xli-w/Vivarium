@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <DHT.h>
 #include <Adafruit_SHT4x.h>
 #include <esp_task_wdt.h>
 #include <cmath>
@@ -11,7 +12,7 @@
 
 WiFiClient net;
 PubSubClient mqtt(net);
-Adafruit_SHT4x sht4External;
+DHT dhtExternal(cfg::PIN_EXTERNAL_DHT, DHT11);
 Adafruit_SHT4x sht4Upper;
 Adafruit_SHT4x sht4Lower;
 Sensors sensors;
@@ -202,6 +203,21 @@ void readSht(Adafruit_SHT4x& sensor, uint8_t channel, float& temperature,
   }
 }
 
+void readDht(float& temperature, float& humidity, bool& ok, uint32_t& updatedAt) {
+  const float nextTemperature = dhtExternal.readTemperature();
+  const float nextHumidity = dhtExternal.readHumidity();
+  if (validTemperature(nextTemperature) && validHumidity(nextHumidity)) {
+    temperature = nextTemperature;
+    humidity = nextHumidity;
+    ok = true;
+    updatedAt = millis();
+  } else {
+    temperature = NAN;
+    humidity = NAN;
+    ok = false;
+  }
+}
+
 void readSensors() {
   sensors.soilRaw = analogRead(cfg::PIN_SOIL_MOISTURE);
   sensors.soilMoisture = moisturePct(sensors.soilRaw);
@@ -210,8 +226,8 @@ void readSensors() {
   sensors.drainageHigh = digitalRead(cfg::PIN_DRAINAGE_LEVEL) == cfg::DRAINAGE_HIGH_ACTIVE;
   sensors.doorOpen = digitalRead(cfg::PIN_DOOR_REED) == cfg::DOOR_OPEN_ACTIVE;
   sensors.levelsUpdatedAt = millis();
-  readSht(sht4External, cfg::TCA_CH_EXTERNAL, sensors.externalTemp,
-          sensors.externalHumidity, sensors.externalOk, sensors.externalUpdatedAt);
+  readDht(sensors.externalTemp, sensors.externalHumidity, sensors.externalOk,
+      sensors.externalUpdatedAt);
   readSht(sht4Upper, cfg::TCA_CH_UPPER, sensors.upperTemp,
           sensors.upperHumidity, sensors.upperOk, sensors.upperUpdatedAt);
   readSht(sht4Lower, cfg::TCA_CH_LOWER, sensors.lowerTemp,
@@ -226,8 +242,8 @@ void readFastInterlocks() {
 }
 
 bool climateValid() {
-  return sensors.externalOk && sensors.upperOk && sensors.lowerOk &&
-         fresh(sensors.externalUpdatedAt) && fresh(sensors.upperUpdatedAt) &&
+  return sensors.upperOk && sensors.lowerOk &&
+         fresh(sensors.upperUpdatedAt) &&
          fresh(sensors.lowerUpdatedAt) && fresh(sensors.soilUpdatedAt) &&
          fresh(sensors.levelsUpdatedAt);
 }
@@ -410,6 +426,9 @@ void controlLoop() {
   enforceOutputTimeouts();
   const bool manualTimedOut = expireManualMode();
   if (manualTimedOut) nextAlarm = AlarmCode::MANUAL_TIMEOUT;
+  if (!sensors.externalOk || !fresh(sensors.externalUpdatedAt)) {
+    nextAlarm = AlarmCode::EXTERNAL_SENSOR_FAULT;
+  }
 
   if (!sensors.drainageHigh) {
     runtime.drainageLockout = false;
@@ -532,15 +551,13 @@ void setup() {
   safeOutputsAtBoot();
   Wire.begin(cfg::PIN_I2C_SDA, cfg::PIN_I2C_SCL);
 
-  bool externalInit = false;
   bool upperInit = false;
   bool lowerInit = false;
-  if (tcaSelect(cfg::TCA_CH_EXTERNAL)) externalInit = sht4External.begin(&Wire);
+  dhtExternal.begin();
   if (tcaSelect(cfg::TCA_CH_UPPER)) upperInit = sht4Upper.begin(&Wire);
   if (tcaSelect(cfg::TCA_CH_LOWER)) lowerInit = sht4Lower.begin(&Wire);
-  Serial.printf("SHT external=%s upper=%s lower=%s\n",
-                externalInit ? "OK" : "FAIL", upperInit ? "OK" : "FAIL",
-                lowerInit ? "OK" : "FAIL");
+  Serial.printf("DHT11 external=READY upper SHT4x=%s lower SHT4x=%s\n",
+                upperInit ? "OK" : "FAIL", lowerInit ? "OK" : "FAIL");
 
   mqtt.setServer(cfg::MQTT_HOST, cfg::MQTT_PORT);
   mqtt.setBufferSize(1536);

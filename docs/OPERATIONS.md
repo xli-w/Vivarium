@@ -214,7 +214,11 @@ Check that the controller is running its loop, that its MQTT command subscriptio
 
 ### Main reports `SENSOR_FAULT`
 
-Check SHT4x power and channel wiring, TCA9548A selection, soil calibration, analog wiring, and sensor values against the configured validity range. Do not bypass the fault to run a heater or water actuator.
+Check upper/lower SHT4x power and channel wiring, TCA9548A selection, soil calibration, analog wiring, and sensor values against the configured validity range. Do not bypass the fault to run a heater or water actuator.
+
+### Main reports `EXTERNAL_SENSOR_FAULT`
+
+Check DHT11 power, pull-up, GPIO 2 wiring, and the sensor data line. Climate control remains available, but the external reference should be repaired before relying on ambient comparisons.
 
 ### Pi API returns `503`
 

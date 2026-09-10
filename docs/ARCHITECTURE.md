@@ -41,17 +41,18 @@ The main firmware uses an ESP32-S3 and the following inputs:
 | Reservoir level | GPIO 6, pull-up | `true` means reservoir low. |
 | Drainage level | GPIO 7, pull-up | `true` means drainage level high. |
 | Door reed | GPIO 10, pull-up | `true` means the door is open. |
-| I2C bus | SDA 8, SCL 9 | TCA9548A and three SHT4x sensors. |
+| External DHT11 | GPIO 2 | Ambient temperature and humidity reference. |
+| I2C bus | SDA 8, SCL 9 | TCA9548A and the upper/lower SHT4x sensors. |
 
-The three SHT4x sensors share an address and are isolated through a TCA9548A at address `0x70`:
+The upper and lower SHT4x sensors share an address and are isolated through a TCA9548A at address `0x70`:
 
 | Sensor | TCA channel | Published fields |
 | --- | ---: | --- |
-| External ambient | 2 | `externalTemperatureC`, `externalHumidityPct` (Reference & failure check only) |
+| External ambient DHT11 | GPIO 2 | `externalTemperatureC`, `externalHumidityPct` (Reference & failure check only) |
 | Upper zone | 0 | `upperTemperatureC`, `upperHumidityPct` |
 | Lower zone | 1 | `lowerTemperatureC`, `lowerHumidityPct` |
 
-Temperature values outside -20 to 60 C and humidity values outside 0 to 100 percent are invalid. A failed or stale climate sensor places climate outputs in the safe-off state.
+Temperature values outside -20 to 60 C and humidity values outside 0 to 100 percent are invalid. A failed or stale upper/lower climate sensor places climate outputs in the safe-off state. A failed or stale external DHT11 raises `EXTERNAL_SENSOR_FAULT` but does not disable climate control because it is a reference sensor.
 
 ### 3.2 Outputs
 
@@ -74,7 +75,7 @@ The controller reads sensors every 2 seconds and evaluates control every 250 ms.
 
 1. Read fast interlocks and enforce actuator timeouts.
 2. Run the drainage response and lockout logic.
-3. If any climate input is invalid or stale, stop mister, fogger, heater, and fan and raise `SENSOR_FAULT`.
+3. If an upper/lower climate input, soil reading, or level input is invalid or stale, stop mister, fogger, heater, and fan and raise `SENSOR_FAULT`. If the external DHT11 is invalid or stale, raise `EXTERNAL_SENSOR_FAULT` without disabling climate control.
 4. If upper or lower zone temperature reaches 30 C, stop climate outputs except the emergency fan and raise `OVER_TEMP`.
 5. If the door is open, stop mister, fogger, fan, and heater and raise `DOOR_OPEN`.
 6. If the reservoir is low, stop mister and fogger and raise `WATER_LOW`.
@@ -130,5 +131,6 @@ The service exposes authenticated endpoints on port 8080 and serves the dashboar
 | MQTT broker unavailable | Continues local control and retries connection. | Raises main-offline/stale alarms after timeout. | Reports disconnected and cannot publish commands. |
 | Pi offline | No effect on local control. | No effect on local control. | History/API/alerts unavailable until restart. |
 | Main controller offline | Actuators stop with the controller. | Raises `MAIN_OFFLINE`. | Heartbeat and telemetry become stale. |
-| Climate sensor invalid or stale | Climate outputs safe off; alarm raised. | May raise stale or cross-check alarms. | Stores the published fault state. |
+| Upper/lower climate, soil, or level input invalid or stale | Climate outputs safe off; `SENSOR_FAULT` raised. | May raise stale or cross-check alarms. | Stores the published fault state. |
+| External DHT11 invalid or stale | `EXTERNAL_SENSOR_FAULT` raised; climate control continues. | Receives the main alarm. | Stores the published alarm state. |
 | Supervisor offline | No effect on local control. | N/A. | Main telemetry continues to be stored. |
