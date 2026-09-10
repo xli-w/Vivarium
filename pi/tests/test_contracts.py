@@ -1,0 +1,106 @@
+import unittest
+from dataclasses import replace
+from unittest.mock import Mock, patch
+
+from fastapi import HTTPException
+
+from app.main import Command, command, config, dashboard, documentation, export_data, history, normalize_command, targets
+
+
+class CommandContractTests(unittest.TestCase):
+    def test_switch_values_are_normalized(self):
+        self.assertEqual(normalize_command(Command(command="mister", value="on")), "ON")
+
+    def test_fan_requires_integer_in_range(self):
+        self.assertEqual(normalize_command(Command(command="fan", value=255)), "255")
+        with self.assertRaises(HTTPException):
+            normalize_command(Command(command="fan", value=256))
+
+    def test_switch_rejects_arbitrary_values(self):
+        with self.assertRaises(HTTPException):
+            normalize_command(Command(command="fogger", value="maybe"))
+
+    def test_alloff_does_not_forward_an_arbitrary_value(self):
+        self.assertEqual(normalize_command(Command(command="alloff", value="ignored")), "OFF")
+
+    def test_command_requires_successful_broker_publish(self):
+        broker = Mock()
+        broker.command.return_value = True
+        with patch("app.main.broker", broker):
+            result = command(Command(command="mister", value="ON"), None)
+        self.assertEqual(result, {"ok": True, "command": "mister", "value": "ON"})
+        broker.command.assert_called_once_with("mister", "ON")
+
+    def test_command_reports_broker_failure(self):
+        broker = Mock()
+        broker.command.return_value = False
+        with patch("app.main.broker", broker), self.assertRaises(HTTPException) as raised:
+            command(Command(command="mister", value="ON"), None)
+        self.assertEqual(raised.exception.status_code, 503)
+
+    def test_dashboard_combines_live_state_and_camera_metadata(self):
+        broker = Mock()
+        broker.snapshot.return_value = {
+            "terrarium/main/heartbeat": {"state": "NORMAL"},
+            "terrarium/main/telemetry": {"soilMoisturePct": 44},
+        }
+        broker.ages.return_value = {}
+        broker.connected.return_value = True
+        with patch("app.main.broker", broker):
+            result = dashboard(None)
+        self.assertEqual(result["heartbeat"], {"state": "NORMAL"})
+        self.assertEqual(result["telemetry"], {"soilMoisturePct": 44})
+        self.assertIn("camera", result)
+
+    def test_history_rejects_reversed_time_range(self):
+        with self.assertRaises(HTTPException) as raised:
+            history(since=20, until=10, limit=10, _auth=None)
+        self.assertEqual(raised.exception.status_code, 400)
+
+    def test_dashboard_does_not_expose_authenticated_stream_url(self):
+        broker = Mock()
+        broker.snapshot.return_value = {}
+        broker.ages.return_value = {}
+        broker.connected.return_value = False
+        test_config = replace(config, camera_stream_url="https://camera.local/live?token=secret", camera_snapshot_url="")
+        with patch("app.main.broker", broker), patch("app.main.config", test_config):
+            result = dashboard(None)
+        self.assertFalse(result["camera"]["streamAvailable"])
+        self.assertIsNone(result["camera"]["streamUrl"])
+
+    def test_documentation_renders_known_document(self):
+        result = documentation("operations")
+        self.assertEqual(result.status_code, 200)
+        self.assertIn("TERRA v7 Operations and API", result.body.decode())
+
+    def test_documentation_rejects_unknown_document(self):
+        with self.assertRaises(HTTPException) as raised:
+            documentation("secrets")
+        self.assertEqual(raised.exception.status_code, 404)
+
+    def test_targets_classify_current_telemetry(self):
+        broker = Mock()
+        broker.snapshot.return_value = {
+            "terrarium/main/telemetry": {
+                "upperTemperatureC": 23,
+                "lowerTemperatureC": 23,
+                "externalTemperatureC": 40,
+                "upperHumidityPct": 70,
+                "lowerHumidityPct": 70,
+                "soilMoisturePct": 50,
+            }
+        }
+        with patch("app.main.broker", broker):
+            result = targets(None)
+        self.assertEqual(result["temperature"]["values"]["upper"]["status"], "within")
+        self.assertEqual(result["temperature"]["values"]["external"]["status"], "out")
+
+    def test_export_returns_json_attachment(self):
+        with patch("app.main.telemetry_history", return_value=[(10.0, "main", '{"soilMoisturePct":44}')]):
+            result = export_data(format="json", since=None, until=None, limit=10, _auth=None)
+        self.assertEqual(result.media_type, "application/json")
+        self.assertIn("soilMoisturePct", result.body.decode())
+
+
+if __name__ == "__main__":
+    unittest.main()

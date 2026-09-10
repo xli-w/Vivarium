@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Libbys Vivarium - Overview</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="overview">
+  <main class="shell">
+    <header class="topbar" data-dashboard-header data-eyebrow="LIBBYS VIVARIUM" data-title="Live Overview"></header>
+    <nav class="section-nav" aria-label="Dashboard sections" data-dashboard-nav></nav>
+
+    <section id="overview">
+    <div class="alarm-strip loading" id="alarmStrip" aria-live="polite">
+      <span class="alarm-dot"></span>
+      <div><strong id="alarmTitle">Waiting for telemetry...</strong><span id="alarmDetail">The dashboard has not confirmed the current system state.</span></div>
+    </div>
+
+    <section class="hero-grid">
+      <article class="camera-panel panel">
+        <div class="panel-heading"><div><p class="eyebrow">CAMERA</p><h2>Enclosure view</h2></div><span class="tag" id="cameraState">Unavailable</span></div>
+        <div class="camera-frame" id="cameraFrame"><div class="camera-placeholder"><span>CAM</span><p>Camera not configured</p></div></div>
+      </article>
+      <div class="hero-sidebar">
+        <article class="panel status-panel">
+          <div class="panel-heading"><div><p class="eyebrow">MAIN CONTROLLER</p><h2 id="mainState">Waiting</h2></div><span class="tag" id="mainStatus">Offline</span></div>
+          <div class="status-metrics">
+            <div><span>Heartbeat</span><strong id="heartbeatAge">--</strong></div>
+            <div><span>Telemetry</span><strong id="telemetryAge">--</strong></div>
+            <div><span>Mode</span><strong id="manualMode">--</strong></div>
+            <div><span>Manual Window</span><strong id="manualTimeout">Automatic mode</strong></div>
+            <div><span>Boot ID</span><strong id="bootId">--</strong></div>
+          </div>
+          <div class="interlocks" id="interlocks"><span class="muted">Interlocks waiting for telemetry.</span></div>
+        </article>
+
+        <section class="events-panel panel">
+          <div class="panel-heading"><div><p class="eyebrow">RECENT EVENTS</p><h2>Alarms &amp; Audit Log</h2></div><button class="quiet-button" id="refreshButton" type="button">Refresh</button></div>
+          <div id="alarmList" class="alarm-list"><span class="muted">No events loaded.</span></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="telemetry-matrix panel">
+      <div class="panel-heading">
+        <div><p class="eyebrow">LIVE TELEMETRY</p><h2>Climate &amp; Environment</h2></div>
+        <span class="updated" id="updatedAt">No update yet</span>
+      </div>
+
+      <div class="matrix-grid">
+        <!-- Climate Zones Column -->
+        <div class="matrix-col">
+          <p class="matrix-title">Climate Sensors</p>
+
+          <div class="zone-row" id="upperZoneRow">
+            <div class="zone-info">
+              <span class="zone">Upper Zone</span>
+              <small id="upperHealth">Sensor waiting...</small>
+              <small class="target-indicator" id="upperTarget">Target --</small>
+            </div>
+            <div class="zone-values">
+              <span class="value-main" id="upperTemp">-- °C</span>
+              <span class="value-sub" id="upperHum">-- RH</span>
+            </div>
+          </div>
+
+          <div class="zone-row" id="lowerZoneRow">
+            <div class="zone-info">
+              <span class="zone">Lower Zone</span>
+              <small id="lowerHealth">Sensor waiting...</small>
+              <small class="target-indicator" id="lowerTarget">Target --</small>
+            </div>
+            <div class="zone-values">
+              <span class="value-main" id="lowerTemp">-- °C</span>
+              <span class="value-sub" id="lowerHum">-- RH</span>
+            </div>
+          </div>
+
+          <div class="zone-row" id="externalZoneRow">
+            <div class="zone-info">
+              <span class="zone">External</span>
+              <small id="externalHealth">Sensor waiting...</small>
+              <small class="target-indicator" id="externalTarget">Target --</small>
+            </div>
+            <div class="zone-values">
+              <span class="value-main" id="externalTemp">-- °C</span>
+              <span class="value-sub" id="externalHum">-- RH</span>
+            </div>
+          </div>
+
+          <div class="zone-row accent" id="soilZoneRow">
+            <div class="zone-info">
+              <span class="zone">Soil Moisture</span>
+              <small id="soilHealth">Sensor waiting...</small>
+              <small class="target-indicator" id="soilTarget">Target --</small>
+            </div>
+            <div class="zone-values">
+              <span class="value-main" id="soilMoisture">-- %</span>
+              <span class="value-sub">Calibrated</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Water & Fluid Management Column -->
+        <div class="matrix-col">
+          <p class="matrix-title">Water &amp; Fluids</p>
+
+          <div class="fluid-row" id="reservoirCard">
+            <div class="fluid-info">
+              <span class="zone">Misting Reservoir Level</span>
+              <small id="reservoirStatus">Float sensor monitoring</small>
+            </div>
+            <span class="fluid-badge" id="reservoirLevel">--</span>
+          </div>
+
+          <div class="fluid-row" id="drainageLevelCard">
+            <div class="fluid-info">
+              <span class="zone">Drainage Substrate Level</span>
+              <small id="drainageLevelStatus">Float sensor monitoring</small>
+            </div>
+            <span class="fluid-badge" id="drainageLevel">--</span>
+          </div>
+
+          <div class="fluid-row" id="drainagePumpCard">
+            <div class="fluid-info">
+              <span class="zone">Drainage Pump</span>
+              <small id="drainagePumpStatus">Automatic drainage pump</small>
+            </div>
+            <span class="fluid-badge" id="drainagePumpState">--</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Combined Controls & Actuators Panel -->
+    <section class="controls-panel panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">CONTROL &amp; ACTUATORS</p>
+          <h2>Manual Actuator Control</h2>
+        </div>
+        <div class="control-actions">
+          <button type="button" class="tag-button" data-command="manual" data-value="ON" id="manualModeBtn" aria-pressed="false" disabled>Enable Manual Mode</button>
+          <button type="button" class="danger-button" id="allOffButton" disabled>All Off</button>
+        </div>
+      </div>
+
+      <div class="actuator-grid">
+        <!-- Mister Widget -->
+        <div class="actuator-card" id="misterWidget">
+          <div class="actuator-header">
+            <span class="actuator-title">Mister</span>
+            <span class="status-pill" id="misterStatusBadge">OFF</span>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="toggle-btn" data-command="mister" data-value="ON">ON</button>
+            <button type="button" class="toggle-btn" data-command="mister" data-value="OFF">OFF</button>
+          </div>
+        </div>
+
+        <!-- Fogger Widget -->
+        <div class="actuator-card" id="foggerWidget">
+          <div class="actuator-header">
+            <span class="actuator-title">Fogger</span>
+            <span class="status-pill" id="foggerStatusBadge">OFF</span>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="toggle-btn" data-command="fogger" data-value="ON">ON</button>
+            <button type="button" class="toggle-btn" data-command="fogger" data-value="OFF">OFF</button>
+          </div>
+        </div>
+
+        <!-- Heater Widget -->
+        <div class="actuator-card" id="heaterWidget">
+          <div class="actuator-header">
+            <span class="actuator-title">Heater</span>
+            <span class="status-pill" id="heaterStatusBadge">OFF</span>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="toggle-btn" data-command="heater" data-value="ON">ON</button>
+            <button type="button" class="toggle-btn" data-command="heater" data-value="OFF">OFF</button>
+          </div>
+        </div>
+
+        <!-- Fan Speed Widget -->
+        <div class="actuator-card" id="fanWidget">
+          <div class="actuator-header">
+            <span class="actuator-title">Ventilation Fan</span>
+            <span class="status-pill" id="fanStatusBadge">0%</span>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="toggle-btn" data-command="fan" data-value="0">OFF</button>
+            <button type="button" class="toggle-btn" data-command="fan" data-value="128">50%</button>
+            <button type="button" class="toggle-btn" data-command="fan" data-value="255">100%</button>
+          </div>
+        </div>
+
+        <!-- Feeder Widget -->
+        <div class="actuator-card" id="feederWidget">
+          <div class="actuator-header">
+            <span class="actuator-title">Feeder Servo</span>
+            <span class="status-pill" id="feederStatusBadge">REST</span>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="action-btn" data-command="feed" data-value="ON">Trigger Feed</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="control-feedback" id="controlFeedback" aria-live="polite">Commands are requests; physical state is confirmed by later telemetry.</p>
+    </section>
+    </section>
+
+    <footer data-dashboard-footer></footer>
+  </main>
+  <script src="app.js" defer></script>
+</body>
+</html>

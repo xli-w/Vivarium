@@ -1,0 +1,9 @@
+{
+  "name": "Libbys Vivarium Dashboard",
+  "short_name": "Vivarium",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1412",
+  "theme_color": "#0d1412",
+  "description": "Local monitoring and control dashboard for Libbys Vivarium"
+}

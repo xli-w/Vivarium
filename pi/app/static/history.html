@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Libbys Vivarium - History</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="history">
+  <main class="shell">
+    <header class="topbar" data-dashboard-header data-eyebrow="LIBBYS VIVARIUM" data-title="Climate History"></header>
+    <nav class="section-nav" aria-label="Dashboard sections" data-dashboard-nav></nav>
+
+    <div class="alarm-strip loading" id="alarmStrip" aria-live="polite">
+      <span class="alarm-dot"></span>
+      <div><strong id="alarmTitle">Waiting for telemetry...</strong><span id="alarmDetail">The dashboard has not confirmed the current system state.</span></div>
+    </div>
+
+    <section id="history" class="panel dashboard-section">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">AIR</p>
+          <h2>Environment History</h2>
+        </div>
+        <div class="history-actions">
+          <div class="export-actions">
+            <a class="quiet-button" data-export="terra-telemetry.csv" href="/api/export?format=csv">Download CSV</a>
+            <a class="quiet-button" data-export="terra-telemetry.json" href="/api/export?format=json">Download JSON</a>
+          </div>
+          <button type="button" class="quiet-button" id="historyRetry" hidden>Retry history</button>
+          <div class="range-buttons" aria-label="History range">
+          <button type="button" class="range-button active" data-hours="6">6h</button>
+          <button type="button" class="range-button" data-hours="24">24h</button>
+          <button type="button" class="range-button" data-hours="168">7d</button>
+          </div>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div>
+          <div class="chart-label"><span>Temperature / °C</span><span id="temperatureChartState">Loading</span></div>
+          <svg class="chart" id="temperatureChart" viewBox="0 0 720 220" role="img" aria-label="Temperature history"></svg>
+          <div class="chart-legend">
+            <button type="button" class="legend-item external" data-chart="temperatureChart" data-series="external" aria-pressed="true">External</button>
+            <button type="button" class="legend-item upper" data-chart="temperatureChart" data-series="upper" aria-pressed="true">Upper zone</button>
+            <button type="button" class="legend-item lower" data-chart="temperatureChart" data-series="lower" aria-pressed="true">Lower zone</button>
+          </div>
+        </div>
+        <div>
+          <div class="chart-label"><span>Humidity / %</span><span id="humidityChartState">Loading</span></div>
+          <svg class="chart" id="humidityChart" viewBox="0 0 720 220" role="img" aria-label="Humidity history"></svg>
+          <div class="chart-legend">
+            <button type="button" class="legend-item upper" data-chart="humidityChart" data-series="upper" aria-pressed="true">Upper zone</button>
+            <button type="button" class="legend-item lower" data-chart="humidityChart" data-series="lower" aria-pressed="true">Lower zone</button>
+            <button type="button" class="legend-item soil" data-chart="humidityChart" data-series="soil" aria-pressed="true">Soil moisture</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel dashboard-section history-trend-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">FLUIDS</p>
+          <h2>Reservoir &amp; Drainage History</h2>
+        </div>
+        <span class="updated" id="waterChartState">Loading</span>
+      </div>
+      <svg class="chart" id="waterChart" viewBox="0 0 720 220" role="img" aria-label="Reservoir and drainage history"></svg>
+      <div class="chart-legend">
+        <button type="button" class="legend-item reservoir" data-chart="waterChart" data-series="reservoir" aria-pressed="true">Reservoir available</button>
+        <button type="button" class="legend-item drainage" data-chart="waterChart" data-series="drainage" aria-pressed="true">Drainage high</button>
+        <button type="button" class="legend-item pump" data-chart="waterChart" data-series="pump" aria-pressed="true">Drainage pump</button>
+      </div>
+    </section>
+
+    <section class="panel dashboard-section history-trend-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">SYSTEM ACTIVITY</p>
+          <h2>Safety &amp; Actuator History</h2>
+        </div>
+        <span class="updated" id="activityChartState">Loading</span>
+      </div>
+      <svg class="chart" id="activityChart" viewBox="0 0 720 220" role="img" aria-label="Safety and actuator history"></svg>
+      <div class="chart-legend">
+        <button type="button" class="legend-item door" data-chart="activityChart" data-series="door" aria-pressed="true">Door open</button>
+        <button type="button" class="legend-item mister" data-chart="activityChart" data-series="mister" aria-pressed="true">Mister</button>
+        <button type="button" class="legend-item fogger" data-chart="activityChart" data-series="fogger" aria-pressed="true">Fogger</button>
+        <button type="button" class="legend-item heater" data-chart="activityChart" data-series="heater" aria-pressed="true">Heater</button>
+        <button type="button" class="legend-item fan" data-chart="activityChart" data-series="fan" aria-pressed="true">Fan</button>
+      </div>
+    </section>
+
+    <section class="panel dashboard-section">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">ALARM HISTORY</p>
+          <h2>Recorded System Events</h2>
+        </div>
+        <span class="updated" id="alarmHistoryState">Loading</span>
+      </div>
+      <div class="history-alarm-list" id="alarmHistoryList" role="list"><span class="muted">No alarms loaded.</span></div>
+    </section>
+
+    <footer data-dashboard-footer></footer>
+  </main>
+  <script src="app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Libbys Vivarium - Mobile View</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="mobile">
+  <main class="shell mobile-shell">
+    <header class="topbar" data-dashboard-header data-eyebrow="CONTROL CENTRE" data-title="Libbys Vivarium"></header>
+    <nav class="section-nav" aria-label="Dashboard sections" data-dashboard-nav></nav>
+
+    <div class="alarm-strip loading" id="alarmStrip" aria-live="polite">
+      <span class="alarm-dot"></span>
+      <div><strong id="alarmTitle">Waiting for telemetry...</strong><span id="alarmDetail">The dashboard has not confirmed the current system state.</span></div>
+    </div>
+
+    <!-- Camera Feed -->
+    <article class="camera-panel panel mobile-panel">
+      <div class="panel-heading">
+        <div><p class="eyebrow">LIVE CAMERA</p><h2>Enclosure view</h2></div>
+        <span class="tag" id="cameraState">Unavailable</span>
+      </div>
+      <div class="camera-frame" id="cameraFrame">
+        <div class="camera-placeholder"><span>CAM</span><p>Camera not configured</p></div>
+      </div>
+    </article>
+
+    <!-- Telemetry & Fluid Matrix -->
+    <section class="telemetry-matrix panel mobile-panel">
+      <div class="panel-heading">
+        <div><p class="eyebrow">LIVE TELEMETRY</p><h2>Sensors &amp; Fluids</h2></div>
+        <span class="updated" id="updatedAt">No update yet</span>
+      </div>
+
+      <div class="matrix-grid mobile-matrix-grid">
+        <!-- Climate Sensors -->
+        <div class="matrix-col">
+          <p class="matrix-title">Climate Zones</p>
+
+          <div class="zone-row" id="upperZoneRow">
+            <div class="zone-info">
+              <span class="zone">Upper Zone</span>
+              <small id="upperHealth">Sensor waiting...</small>
+            </div>
+            <div class="zone-values">
+              <span class="value-main" id="upperTemp">-- °C</span>
+              <span class="value-sub" id="upperHum">-- RH</span>
+            </div>
+          </div>
+
+          <div class="zone-row" id="lowerZoneRow">
+            <div class="zone-info">
+              <span class="zone">Lower Zone</span>
+              <small id="lowerHealth">Sensor waiting</small>
+            </div>
+            <div class="zone-values">
+              <span class="value-main" id="lowerTemp">-- °C</span>
+              <span class="value-sub" id="lowerHum">-- RH</span>
+            </div>
+          </div>
+
+          <div class="zone-row" id="externalZoneRow">
+            <div class="zone-info">
+              <span class="zone">External</span>
+              <small id="externalHealth">Sensor waiting...</small>
+            </div>
+            <div class="zone-values">
+              <span class="value-main" id="externalTemp">-- °C</span>
+              <span class="value-sub" id="externalHum">-- RH</span>
+            </div>
+          </div>
+
+          <div class="zone-row accent" id="soilZoneRow">
+            <div class="zone-info">
+              <span class="zone">Soil Moisture</span>
+              <small id="soilHealth">Sensor waiting...</small>
+            </div>
+            <div class="zone-values">
+              <span class="value-main" id="soilMoisture">-- %</span>
+              <span class="value-sub">Calibrated</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fluids -->
+        <div class="matrix-col">
+          <p class="matrix-title">Water &amp; Fluids</p>
+
+          <div class="fluid-row" id="reservoirCard">
+            <div class="fluid-info">
+              <span class="zone">Misting Reservoir Level</span>
+              <small id="reservoirStatus">Float sensor</small>
+            </div>
+            <span class="fluid-badge" id="reservoirLevel">--</span>
+          </div>
+
+          <div class="fluid-row" id="drainageLevelCard">
+            <div class="fluid-info">
+              <span class="zone">Drainage Substrate Level</span>
+              <small id="drainageLevelStatus">Float sensor</small>
+            </div>
+            <span class="fluid-badge" id="drainageLevel">--</span>
+          </div>
+
+          <div class="fluid-row" id="drainagePumpCard">
+            <div class="fluid-info">
+              <span class="zone">Auto Drainage Pump</span>
+              <small id="drainagePumpStatus">Removal pump</small>
+            </div>
+            <span class="fluid-badge" id="drainagePumpState">--</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Smart Interactive Controls -->
+    <section class="controls-panel panel mobile-panel">
+      <div class="panel-heading">
+        <div><p class="eyebrow">QUICK CONTROLS</p><h2>Actuators</h2><span class="control-feedback" id="manualTimeout">Automatic mode</span></div>
+        <button class="tag-button mobile-touch-button" data-command="manual" data-value="ON" id="manualModeBtn" aria-pressed="false" disabled>Enable Manual Mode</button>
+        <button class="danger-button mobile-touch-button" id="allOffButton" type="button" disabled>All Off</button>
+      </div>
+
+      <div class="actuator-grid mobile-actuator-grid">
+        <!-- Mister Widget -->
+        <div class="actuator-card" id="misterWidget">
+          <div class="actuator-header">
+            <span class="actuator-title">Mister Pump</span>
+            <span class="status-pill" id="misterStatusBadge">OFF</span>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="toggle-btn mobile-touch-button" data-command="mister" data-value="ON">ON</button>
+            <button type="button" class="toggle-btn mobile-touch-button" data-command="mister" data-value="OFF">OFF</button>
+          </div>
+        </div>
+
+        <!-- Fogger Widget -->
+        <div class="actuator-card" id="foggerWidget">
+          <div class="actuator-header">
+            <span class="actuator-title">Fogger</span>
+            <span class="status-pill" id="foggerStatusBadge">OFF</span>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="toggle-btn mobile-touch-button" data-command="fogger" data-value="ON">ON</button>
+            <button type="button" class="toggle-btn mobile-touch-button" data-command="fogger" data-value="OFF">OFF</button>
+          </div>
+        </div>
+
+        <!-- Heater Widget -->
+        <div class="actuator-card" id="heaterWidget">
+          <div class="actuator-header">
+            <span class="actuator-title">Climate Heater</span>
+            <span class="status-pill" id="heaterStatusBadge">OFF</span>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="toggle-btn mobile-touch-button" data-command="heater" data-value="ON">ON</button>
+            <button type="button" class="toggle-btn mobile-touch-button" data-command="heater" data-value="OFF">OFF</button>
+          </div>
+        </div>
+
+        <!-- Fan Speed Widget -->
+        <div class="actuator-card" id="fanWidget">
+          <div class="actuator-header">
+            <span class="actuator-title">Ventilation Fan</span>
+            <span class="status-pill" id="fanStatusBadge">0%</span>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="toggle-btn mobile-touch-button" data-command="fan" data-value="0">OFF</button>
+            <button type="button" class="toggle-btn mobile-touch-button" data-command="fan" data-value="128">50%</button>
+            <button type="button" class="toggle-btn mobile-touch-button" data-command="fan" data-value="255">100%</button>
+          </div>
+        </div>
+
+        <!-- Feeder Widget -->
+        <div class="actuator-card" id="feederWidget">
+          <div class="actuator-header">
+            <span class="actuator-title">Feeder Servo</span>
+            <span class="status-pill" id="feederStatusBadge">REST</span>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="action-btn mobile-touch-button" data-command="feed" data-value="ON">Trigger Feed</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="control-feedback" id="controlFeedback" aria-live="polite">Tap any control to publish request.</p>
+    </section>
+
+    <footer data-dashboard-footer></footer>
+  </main>
+  <script src="app.js" defer></script>
+</body>
+</html>
