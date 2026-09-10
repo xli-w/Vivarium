@@ -143,7 +143,7 @@ void publishAlarm(const char* code, const char* detail) {
 
   String payload;
   serializeJson(doc, payload);
-  mqtt.publish("terrarium/supervisor/alarm", payload.c_str(), false);
+  mqtt.publish("vivarium/supervisor/alarm", payload.c_str(), false);
   lastAlarmPublish = millis();
 }
 
@@ -245,7 +245,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int len) {
 
   const String topicName = topic;
 
-  if (topicName == "terrarium/main/heartbeat") {
+  if (topicName == "vivarium/main/heartbeat") {
     lastMainHeartbeatRx = millis();
     mainOnline = true;
     mainState = String((const char*)(doc["state"] | "UNKNOWN"));
@@ -254,7 +254,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int len) {
     return;
   }
 
-  if (topicName == "terrarium/main/telemetry") {
+  if (topicName == "vivarium/main/telemetry") {
     lastTelemetryRx = millis();
 
     mainExternal = doc["externalTemperatureC"].is<float>()
@@ -318,8 +318,8 @@ void mqttService() {
       String(supcfg::DEVICE_ID) + "-" + String((uint32_t)ESP.getEfuseMac(), HEX);
 
   if (mqtt.connect(clientId.c_str(), supcfg::MQTT_USER, supcfg::MQTT_PASSWORD)) {
-    mqtt.subscribe("terrarium/main/heartbeat", 1);
-    mqtt.subscribe("terrarium/main/telemetry", 1);
+    mqtt.subscribe("vivarium/main/heartbeat", 1);
+    mqtt.subscribe("vivarium/main/telemetry", 1);
   }
 }
 

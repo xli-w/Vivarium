@@ -47,7 +47,7 @@ def _send_alert_now(code: str, detail: str, payload: str) -> bool:
         return False
 
     msg = EmailMessage()
-    msg["Subject"] = f"Frog Terrarium ALERT: {code}"
+    msg["Subject"] = f"Frog Vivarium ALERT: {code}"
     msg["From"] = config.smtp_user
     msg["To"] = config.alert_email
     msg.set_content(f"{code}\n\n{detail}\n\nPayload:\n{payload}")

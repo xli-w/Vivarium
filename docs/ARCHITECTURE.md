@@ -112,7 +112,7 @@ The supervisor is electrically and logically separate from the main controller. 
 - Main upper versus lower gradient: maximum 8 C.
 - Main alarm and reservoir state.
 
-The supervisor produces local display and buzzer alarms including `MAIN_OFFLINE`, `TELEMETRY_STALE`, `MAIN_GRADIENT`, `RESERVOIR_LOW`, and `MAIN_ALARM`. It publishes supervisor alarms to `terrarium/supervisor/alarm` when live mode is enabled. External ambient temperature data from main telemetry is displayed for reference.
+The supervisor produces local display and buzzer alarms including `MAIN_OFFLINE`, `TELEMETRY_STALE`, `MAIN_GRADIENT`, `RESERVOIR_LOW`, and `MAIN_ALARM`. It publishes supervisor alarms to `vivarium/supervisor/alarm` when live mode is enabled. External ambient temperature data from main telemetry is displayed for reference.
 
 The display hardware is a CYD ESP32-2432S028R using LVGL, TFT_eSPI, and XPT2046. This is an implementation detail of the supervision device, not a system dependency: the main controller does not rely on the display being present.
 

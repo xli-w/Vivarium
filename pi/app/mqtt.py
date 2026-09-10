@@ -10,11 +10,11 @@ from .config import config
 from .db import add
 
 log = logging.getLogger(__name__)
-TOPIC_MAIN_HEARTBEAT = "terrarium/main/heartbeat"
-TOPIC_MAIN_TELEMETRY = "terrarium/main/telemetry"
-TOPIC_MAIN_ALARM = "terrarium/main/alarm"
-TOPIC_SUPERVISOR_ALARM = "terrarium/supervisor/alarm"
-TOPIC_COMMAND = "terrarium/main/command"
+TOPIC_MAIN_HEARTBEAT = "vivarium/main/heartbeat"
+TOPIC_MAIN_TELEMETRY = "vivarium/main/telemetry"
+TOPIC_MAIN_ALARM = "vivarium/main/alarm"
+TOPIC_SUPERVISOR_ALARM = "vivarium/supervisor/alarm"
+TOPIC_COMMAND = "vivarium/main/command"
 TOPICS = (TOPIC_MAIN_HEARTBEAT, TOPIC_MAIN_TELEMETRY, TOPIC_MAIN_ALARM, TOPIC_SUPERVISOR_ALARM)
 MAX_PAYLOAD_BYTES = 64 * 1024
 PUBLISH_TIMEOUT_S = 5
@@ -59,7 +59,7 @@ class Broker:
             log.info("Ignored retained MQTT health message on %s", msg.topic)
             return
         raw = msg.payload.decode(errors="replace")
-        source = "supervisor" if msg.topic.startswith("terrarium/supervisor/") else "main"
+        source = "supervisor" if msg.topic.startswith("vivarium/supervisor/") else "main"
 
         try:
             data = json.loads(raw)

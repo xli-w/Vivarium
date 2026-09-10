@@ -41,8 +41,8 @@ class CommandContractTests(unittest.TestCase):
     def test_dashboard_combines_live_state_and_camera_metadata(self):
         broker = Mock()
         broker.snapshot.return_value = {
-            "terrarium/main/heartbeat": {"state": "NORMAL"},
-            "terrarium/main/telemetry": {"soilMoisturePct": 44},
+            "vivarium/main/heartbeat": {"state": "NORMAL"},
+            "vivarium/main/telemetry": {"soilMoisturePct": 44},
         }
         broker.ages.return_value = {}
         broker.connected.return_value = True
@@ -81,7 +81,7 @@ class CommandContractTests(unittest.TestCase):
     def test_targets_classify_current_telemetry(self):
         broker = Mock()
         broker.snapshot.return_value = {
-            "terrarium/main/telemetry": {
+            "vivarium/main/telemetry": {
                 "upperTemperatureC": 23,
                 "lowerTemperatureC": 23,
                 "externalTemperatureC": 40,

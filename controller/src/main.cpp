@@ -242,13 +242,13 @@ bool publishJson(const char* topicSuffix, JsonDocument& document) {
   const size_t length = serializeJson(document, payload, sizeof(payload));
   if (length == 0 || length >= sizeof(payload)) return false;
   char topic[64];
-  snprintf(topic, sizeof(topic), "terrarium/%s", topicSuffix);
+  snprintf(topic, sizeof(topic), "vivarium/%s", topicSuffix);
   return mqtt.publish(topic, payload, false);
 }
 
 void clearRetainedStatus() {
-  mqtt.publish("terrarium/main/heartbeat", "", true);
-  mqtt.publish("terrarium/main/telemetry", "", true);
+  mqtt.publish("vivarium/main/heartbeat", "", true);
+  mqtt.publish("vivarium/main/telemetry", "", true);
 }
 
 void publishHeartbeat() {
@@ -365,7 +365,7 @@ void mqttService() {
     if (!runtime.commandSubscribed &&
         now - runtime.lastMqttSubscribeAttempt >= cfg::MQTT_RECONNECT_INTERVAL_MS) {
       runtime.lastMqttSubscribeAttempt = now;
-      runtime.commandSubscribed = mqtt.subscribe("terrarium/main/command", 1);
+      runtime.commandSubscribed = mqtt.subscribe("vivarium/main/command", 1);
     }
     runtime.mqtt = runtime.commandSubscribed;
     return;
@@ -378,7 +378,7 @@ void mqttService() {
   if (mqtt.connect(clientId.c_str(), cfg::MQTT_USER, cfg::MQTT_PASSWORD)) {
     clearRetainedStatus();
     runtime.lastMqttSubscribeAttempt = millis();
-    runtime.commandSubscribed = mqtt.subscribe("terrarium/main/command", 1);
+    runtime.commandSubscribed = mqtt.subscribe("vivarium/main/command", 1);
     runtime.mqtt = runtime.commandSubscribed;
   }
 }

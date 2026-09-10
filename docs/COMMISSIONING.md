@@ -54,13 +54,13 @@ Commission in stages. Do not connect pumps, heater, or other high-current loads 
 ## 5. Bring up the MQTT and Pi path
 
 - [ ] Start the MQTT broker and verify the controller reconnects.
-- [ ] Confirm live `terrarium/main/heartbeat` messages arrive approximately every 2 seconds.
-- [ ] Confirm live `terrarium/main/telemetry` messages arrive approximately every 5 seconds.
+- [ ] Confirm live `vivarium/main/heartbeat` messages arrive approximately every 2 seconds.
+- [ ] Confirm live `vivarium/main/telemetry` messages arrive approximately every 5 seconds.
 - [ ] Confirm health messages are not retained and that old retained values are cleared during controller connection.
 - [ ] Start the Pi service and verify it subscribes without errors.
 - [ ] Confirm telemetry is stored in SQLite and alarm records include code, severity, detail, source, and payload.
 - [ ] Verify API requests without the correct `X-API-Key` are rejected.
-- [ ] Verify valid commands publish to `terrarium/main/command` and invalid command values are rejected.
+- [ ] Verify valid commands publish to `vivarium/main/command` and invalid command values are rejected.
 - [ ] Confirm `/api/health` reports MQTT, database, and freshness state accurately.
 - [ ] Reboot the Pi; the main controller must continue local operation while the Pi is unavailable.
 

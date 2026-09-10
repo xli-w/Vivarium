@@ -19,7 +19,7 @@ Copy `pi/.env.example` to `.env` and set:
 | --- | --- | --- |
 | `MQTT_HOST` / `MQTT_PORT` | Broker address | `localhost` / `1883` |
 | `MQTT_USER` / `MQTT_PASSWORD` | Broker credentials | empty |
-| `DB_PATH` | SQLite database path | `/var/lib/frog-terrarium/terrarium.db` |
+| `DB_PATH` | SQLite database path | `/var/lib/frog-vivarium/vivarium.db` |
 | `ALERT_EMAIL` | Alert recipient | empty |
 | `SMTP_HOST` / `SMTP_PORT` | SMTP server | empty / `587` |
 | `SMTP_USER` / `SMTP_PASSWORD` | SMTP credentials | empty |
@@ -42,11 +42,11 @@ The service refuses API access when `API_TOKEN` is empty. Use a long, unique val
 
 | Topic | Direction | Frequency | Retained | Payload role |
 | --- | --- | ---: | --- | --- |
-| `terrarium/main/heartbeat` | Main to broker | 2 s | No | Liveness, state, alarm, sensor status. |
-| `terrarium/main/telemetry` | Main to broker | 5 s | No | Measurements, interlocks, and actuator state. |
-| `terrarium/main/alarm` | Reserved main alarm topic | Not currently emitted | No | Reserved for a future dedicated main alarm stream; current main alarms are included in heartbeat and telemetry. |
-| `terrarium/supervisor/alarm` | Supervisor to broker | Event/repeat | No | Independent supervision alarms. |
-| `terrarium/main/command` | Pi to main | On demand | No | Validated actuator/control command. |
+| `vivarium/main/heartbeat` | Main to broker | 2 s | No | Liveness, state, alarm, sensor status. |
+| `vivarium/main/telemetry` | Main to broker | 5 s | No | Measurements, interlocks, and actuator state. |
+| `vivarium/main/alarm` | Reserved main alarm topic | Not currently emitted | No | Reserved for a future dedicated main alarm stream; current main alarms are included in heartbeat and telemetry. |
+| `vivarium/supervisor/alarm` | Supervisor to broker | Event/repeat | No | Independent supervision alarms. |
+| `vivarium/main/command` | Pi to main | On demand | No | Validated actuator/control command. |
 
 Health payloads include `deviceId`, `bootId`, `sequence`, state/alarm fields, and sensor or actuator fields. Consumers must use receipt time and freshness thresholds, not MQTT retained state. Empty payloads are retained-message cleanup tombstones and are ignored.
 
@@ -182,22 +182,22 @@ Email delivery is asynchronous so MQTT processing and API requests are not block
 
 ## 6. Deployment
 
-The supplied [systemd unit](../pi/systemd-frog-terrarium.service) expects:
+The supplied [systemd unit](../pi/systemd-frog-vivarium.service) expects:
 
-- application at `/opt/frog-terrarium/pi`;
-- virtual environment at `/opt/frog-terrarium/venv`;
-- environment file at `/opt/frog-terrarium/pi/.env`;
-- database directory `/var/lib/frog-terrarium`;
-- service user `terrarium`;
+- application at `/opt/frog-vivarium/pi`;
+- virtual environment at `/opt/frog-vivarium/venv`;
+- environment file at `/opt/frog-vivarium/pi/.env`;
+- database directory `/var/lib/frog-vivarium`;
+- service user `vivarium`;
 - MQTT service `mosquitto.service`.
 
 Typical host-side setup is:
 
 ```text
-python -m venv /opt/frog-terrarium/venv
-/opt/frog-terrarium/venv/bin/pip install -r pi/requirements.txt
-sudo systemctl enable --now frog-terrarium.service
-sudo journalctl -u frog-terrarium.service -f
+python -m venv /opt/frog-vivarium/venv
+/opt/frog-vivarium/venv/bin/pip install -r pi/requirements.txt
+sudo systemctl enable --now frog-vivarium.service
+sudo journalctl -u frog-vivarium.service -f
 ```
 
 The unit uses a restricted service account, a private temporary directory, a read-only system, and an explicit writable database path. Keep the `.env` file readable only by the service account or an administrative group.

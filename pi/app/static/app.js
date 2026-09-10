@@ -140,7 +140,7 @@ function renderCamera(camera) {
   let img = frame.querySelector("img");
   if (!img) {
     img = document.createElement("img");
-    img.alt = "Terrarium camera feed";
+    img.alt = "Vivarium camera feed";
     frame.replaceChildren(img);
   }
   if (camera.streamAvailable) {

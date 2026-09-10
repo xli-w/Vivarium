@@ -41,7 +41,7 @@ async def lifespan(_app: FastAPI):
         broker.stop()
 
 
-app = FastAPI(title="Frog Terrarium Supervisor", version="7.0", lifespan=lifespan)
+app = FastAPI(title="Frog Vivarium Supervisor", version="7.0", lifespan=lifespan)
 
 
 def _decode_payload(payload: str) -> dict:

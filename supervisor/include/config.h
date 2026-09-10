@@ -4,13 +4,13 @@
 namespace supcfg {
 constexpr bool DISPLAY_TEST_MODE = false;
 
-constexpr const char* WIFI_SSID = "CHANGE_ME";
-constexpr const char* WIFI_PASSWORD = "CHANGE_ME";
+constexpr const char* WIFI_SSID = "Internot";
+constexpr const char* WIFI_PASSWORD = "jamesoli1";
 constexpr const char* MQTT_HOST = "192.168.1.10";
 constexpr uint16_t MQTT_PORT = 1883;
-constexpr const char* MQTT_USER = "terrarium";
-constexpr const char* MQTT_PASSWORD = "CHANGE_ME";
-constexpr const char* DEVICE_ID = "terrarium-cyd";
+constexpr const char* MQTT_USER = "vivarium";
+constexpr const char* MQTT_PASSWORD = "pass";
+constexpr const char* DEVICE_ID = "vivarium-cyd";
 
 // CYD / ESP32-2432S028R — 2.8in ILI9341 320x240 Landscape mode.
 // TFT rotation 1 = Landscape (USB on right), 3 = Landscape (USB on left).

@@ -32,7 +32,7 @@ class Config:
     mqtt_port: int = _int("MQTT_PORT", 1883)
     mqtt_user: str = os.getenv("MQTT_USER", "")
     mqtt_password: str = os.getenv("MQTT_PASSWORD", "")
-    db_path: str = os.getenv("DB_PATH", "/var/lib/frog-terrarium/terrarium.db")
+    db_path: str = os.getenv("DB_PATH", "/var/lib/frog-vivarium/vivarium.db")
     alert_email: str = os.getenv("ALERT_EMAIL", "")
     smtp_host: str = os.getenv("SMTP_HOST", "")
     smtp_port: int = _int("SMTP_PORT", 587)

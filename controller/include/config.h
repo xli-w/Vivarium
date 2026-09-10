@@ -3,13 +3,13 @@
 
 namespace cfg {
 // ===== Network =====
-constexpr const char* WIFI_SSID = "CHANGE_ME";
-constexpr const char* WIFI_PASSWORD = "CHANGE_ME";
+constexpr const char* WIFI_SSID = "Internot";
+constexpr const char* WIFI_PASSWORD = "jamesoli1";
 constexpr const char* MQTT_HOST = "192.168.1.10";
 constexpr uint16_t MQTT_PORT = 1883;
-constexpr const char* MQTT_USER = "terrarium";
-constexpr const char* MQTT_PASSWORD = "CHANGE_ME";
-constexpr const char* DEVICE_ID = "terrarium-main";
+constexpr const char* MQTT_USER = "vivarium";
+constexpr const char* MQTT_PASSWORD = "pass";
+constexpr const char* DEVICE_ID = "vivarium-main";
 
 // ===== Main controller I/O =====
 constexpr uint8_t PIN_SOIL_MOISTURE = 1;
