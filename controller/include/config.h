@@ -13,7 +13,7 @@ constexpr const char* DEVICE_ID = "vivarium-main";
 
 // ===== Main controller I/O =====
 constexpr uint8_t PIN_SOIL_MOISTURE = 1;
-constexpr uint8_t PIN_EXTERNAL_DHT = 2;
+constexpr uint8_t PIN_EXTERNAL_DHT = 4;
 constexpr uint8_t PIN_RESERVOIR_LEVEL = 6;
 constexpr uint8_t PIN_DRAINAGE_LEVEL = 7;
 constexpr uint8_t PIN_I2C_SDA = 8;
