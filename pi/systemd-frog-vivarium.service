@@ -5,6 +5,7 @@ Wants=network-online.target
 
 [Service]
 User=vivarium
+SupplementaryGroups=video
 WorkingDirectory=/opt/frog-vivarium/pi
 EnvironmentFile=/opt/frog-vivarium/pi/.env
 ExecStart=/opt/frog-vivarium/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8080
@@ -17,7 +18,8 @@ StandardError=journal
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
-PrivateDevices=true
+PrivateDevices=false
+DeviceAllow=char-video4linux rw
 ProtectSystem=strict
 ProtectHome=true
 ProtectKernelTunables=true

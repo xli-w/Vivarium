@@ -26,6 +26,13 @@ def _float(name: str, default: float) -> float:
         raise ValueError(f"{name} must be a number") from exc
 
 
+def _bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True)
 class Config:
     mqtt_host: str = os.getenv("MQTT_HOST", "localhost")
@@ -38,6 +45,11 @@ class Config:
     smtp_port: int = _int("SMTP_PORT", 587)
     smtp_user: str = os.getenv("SMTP_USER", "")
     smtp_password: str = os.getenv("SMTP_PASSWORD", "")
+    camera_enabled: bool = _bool("CAMERA_ENABLED", True)
+    camera_device_index: int = _int("CAMERA_DEVICE_INDEX", 0)
+    camera_width: int = _int("CAMERA_WIDTH", 1280)
+    camera_height: int = _int("CAMERA_HEIGHT", 720)
+    camera_fps: int = _int("CAMERA_FPS", 15)
     camera_snapshot_url: str = os.getenv("CAMERA_SNAPSHOT_URL", "")
     camera_stream_url: str = os.getenv("CAMERA_STREAM_URL", "")
     camera_timeout_s: float = _float("CAMERA_TIMEOUT_S", 3.0)
@@ -69,6 +81,12 @@ class Config:
             raise ValueError("HEARTBEAT_TIMEOUT_S must be at least 1")
         if self.telemetry_timeout_s < 1:
             raise ValueError("TELEMETRY_TIMEOUT_S must be at least 1")
+        if self.camera_device_index < 0:
+            raise ValueError("CAMERA_DEVICE_INDEX must not be negative")
+        if self.camera_width < 1 or self.camera_height < 1:
+            raise ValueError("CAMERA_WIDTH and CAMERA_HEIGHT must be positive")
+        if self.camera_fps < 1:
+            raise ValueError("CAMERA_FPS must be at least 1")
         if not math.isfinite(self.camera_timeout_s) or self.camera_timeout_s <= 0:
             raise ValueError("CAMERA_TIMEOUT_S must be greater than 0")
         if self.dashboard_poll_s < 1:

@@ -62,11 +62,34 @@ class CommandContractTests(unittest.TestCase):
         broker.snapshot.return_value = {}
         broker.ages.return_value = {}
         broker.connected.return_value = False
-        test_config = replace(config, camera_stream_url="https://camera.local/live?token=secret", camera_snapshot_url="")
+        test_config = replace(
+            config,
+            camera_enabled=False,
+            camera_stream_url="https://camera.local/live?token=secret",
+            camera_snapshot_url="",
+        )
         with patch("app.main.broker", broker), patch("app.main.config", test_config):
             result = dashboard(None)
         self.assertFalse(result["camera"]["streamAvailable"])
         self.assertIsNone(result["camera"]["streamUrl"])
+
+    def test_usb_camera_snapshot_success(self):
+        fake_jpeg = b"\xff\xd8\xff\xe0\x00\x10JFIF"
+        test_config = replace(config, camera_enabled=True)
+        with patch("app.main.config", test_config), patch("app.main.usb_camera.get_snapshot", return_value=fake_jpeg):
+            from app.main import camera_snapshot
+            response = camera_snapshot(None)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.media_type, "image/jpeg")
+            self.assertEqual(response.body, fake_jpeg)
+
+    def test_usb_camera_snapshot_failure(self):
+        test_config = replace(config, camera_enabled=True, camera_snapshot_url="")
+        with patch("app.main.config", test_config), patch("app.main.usb_camera.get_snapshot", return_value=None):
+            from app.main import camera_snapshot
+            with self.assertRaises(HTTPException) as raised:
+                camera_snapshot(None)
+            self.assertEqual(raised.exception.status_code, 502)
 
     def test_documentation_renders_known_document(self):
         result = documentation("operations")

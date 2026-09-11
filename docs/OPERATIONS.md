@@ -31,9 +31,13 @@ Copy `pi/.env.example` to `.env` and set:
 | `TARGET_TEMPERATURE_MIN_C` / `TARGET_TEMPERATURE_MAX_C` | Dashboard temperature target band | `20.0` / `26.0` |
 | `TARGET_HUMIDITY_MIN_PCT` / `TARGET_HUMIDITY_MAX_PCT` | Dashboard humidity target band | `60.0` / `85.0` |
 | `TARGET_SOIL_MIN_PCT` / `TARGET_SOIL_MAX_PCT` | Dashboard soil-moisture target band | `35.0` / `70.0` |
-| `CAMERA_SNAPSHOT_URL` | Optional JPEG/PNG/WebP snapshot source | empty |
+| `CAMERA_ENABLED` | Enable local USB camera capture | `true` |
+| `CAMERA_DEVICE_INDEX` | V4L2 device index (e.g. `/dev/video0` -> `0`) | `0` |
+| `CAMERA_WIDTH` / `CAMERA_HEIGHT` | USB camera capture resolution | `1280` / `720` |
+| `CAMERA_FPS` | USB camera capture / stream frame rate | `15` |
+| `CAMERA_SNAPSHOT_URL` | Optional fallback remote JPEG/PNG/WebP snapshot source | empty |
 | `CAMERA_STREAM_URL` | Optional credential-free browser-compatible stream source | empty |
-| `CAMERA_TIMEOUT_S` | Snapshot fetch timeout | `3` |
+| `CAMERA_TIMEOUT_S` | Snapshot fetch timeout for remote camera | `3` |
 | `DASHBOARD_POLL_S` | Browser dashboard refresh interval | `5` |
 
 The service refuses API access when `API_TOKEN` is empty. Use a long, unique value and send it as the `X-API-Key` header.

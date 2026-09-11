@@ -3,18 +3,20 @@ import json
 import html
 import csv
 import io
+import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, StrictInt, StrictStr
 
 from .config import config
 from .alerts import status as alert_status
+from .camera import usb_camera
 from .db import acknowledge_alarm, active_alarms, audit_command
 from .db import health as database_health
 from .db import init, recent, recent_alarms, recent_commands, telemetry_history
@@ -38,6 +40,7 @@ async def lifespan(_app: FastAPI):
     try:
         yield
     finally:
+        usb_camera.release()
         broker.stop()
 
 
@@ -62,11 +65,18 @@ def _camera_metadata() -> dict:
         and not stream_parts.query
         and stream_parts.scheme in {"http", "https"}
     )
+    snapshot_available = config.camera_enabled or bool(config.camera_snapshot_url)
+    stream_available = public_stream or config.camera_enabled
+    stream_url = (
+        config.camera_stream_url
+        if public_stream
+        else ("/api/camera/stream" if config.camera_enabled else None)
+    )
     return {
-        "snapshotAvailable": bool(config.camera_snapshot_url),
-        "streamAvailable": public_stream,
-        "snapshotUrl": "/api/camera/snapshot" if config.camera_snapshot_url else None,
-        "streamUrl": config.camera_stream_url if public_stream else None,
+        "snapshotAvailable": snapshot_available,
+        "streamAvailable": stream_available,
+        "snapshotUrl": "/api/camera/snapshot" if snapshot_available else None,
+        "streamUrl": stream_url,
     }
 
 
@@ -294,6 +304,13 @@ def command(c: Command, _auth: None = Depends(require_token)) -> dict:
 
 @app.get("/api/camera/snapshot")
 def camera_snapshot(_auth: None = Depends(require_token)) -> Response:
+    if config.camera_enabled:
+        frame_bytes = usb_camera.get_snapshot()
+        if frame_bytes is not None:
+            return Response(content=frame_bytes, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+        if not config.camera_snapshot_url:
+            raise HTTPException(502, "USB camera snapshot unavailable")
+
     if not config.camera_snapshot_url:
         raise HTTPException(404, "camera snapshot is not configured")
     try:
@@ -310,6 +327,32 @@ def camera_snapshot(_auth: None = Depends(require_token)) -> Response:
     if len(body) > 8 * 1024 * 1024:
         raise HTTPException(502, "camera snapshot is too large")
     return Response(content=body, media_type=content_type, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/camera/stream")
+def camera_stream(_auth: None = Depends(require_token)):
+    if not config.camera_enabled:
+        raise HTTPException(404, "USB camera stream is not enabled")
+
+    def _mjpeg_generator():
+        interval = 1.0 / max(1, config.camera_fps)
+        while True:
+            start_time = time.time()
+            frame = usb_camera.get_snapshot()
+            if frame:
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
+                )
+            elapsed = time.time() - start_time
+            sleep_time = max(0.01, interval - elapsed)
+            time.sleep(sleep_time)
+
+    return StreamingResponse(
+        _mjpeg_generator(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 app.mount("/", StaticFiles(directory=Path(__file__).parent / "static", html=True), name="static")
