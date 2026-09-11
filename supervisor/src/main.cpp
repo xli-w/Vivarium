@@ -11,7 +11,7 @@
 #include "config.h"
 
 // ============================================================================
-// TERRA CYD SUPERVISOR — 320x240 LVGL 9 + TFT_eSPI + XPT2046
+// TERRA CYD SUPERVISOR — 320x240 LVGL 9.5 + TFT_eSPI + XPT2046
 // Target: ESP32-2432S028R (Cheap Yellow Display 2.8" ILI9341 + XPT2046)
 // ============================================================================
 
@@ -51,16 +51,22 @@ float mainUpper = NAN;
 float mainLower = NAN;
 float mainUpperHum = NAN;
 float mainLowerHum = NAN;
+bool mainUpperOk = false;
+bool mainLowerOk = false;
 float mainSoil = NAN;
+int mainSoilRaw = 0;
 
 // Main Controller Extended Telemetry
 bool mainWaterLow = false;
 bool mainDrainageHigh = false;
-bool mainDoorOpen = true;
+bool mainDoorOpen = false;
+bool mainManual = false;
+uint32_t mainManualRemaining = 0;
 bool mainMisterPump = false;
 bool mainFogger = false;
 bool mainHeater = false;
 bool mainDrainagePump = false;
+bool mainFoodServoActive = false;
 uint8_t mainFanPwm = 0;
 
 // ---------- Buzzer ----------
@@ -142,10 +148,12 @@ void publishAlarm(const char* code, const char* detail) {
   doc["uptimeMs"] = millis();
   doc["bootId"] = bootCounter;
 
-  String payload;
-  serializeJson(doc, payload);
-  mqtt.publish("vivarium/supervisor/alarm", payload.c_str(), false);
-  lastAlarmPublish = millis();
+  char payload[384];
+  const size_t len = serializeJson(doc, payload, sizeof(payload));
+  if (len > 0 && len < sizeof(payload)) {
+    mqtt.publish("vivarium/supervisor/alarm", payload, false);
+    lastAlarmPublish = millis();
+  }
 }
 
 void setAlarm(const char* code, const char* detail) {
@@ -219,6 +227,11 @@ void supervisionService() {
     return;
   }
 
+  if (mainDrainageHigh) {
+    setAlarm("DRAINAGE_HIGH", "Drainage sump level high");
+    return;
+  }
+
   if (mainAlarm != "NONE" && mainAlarm != "UNKNOWN") {
     String detail = "Main: " + mainAlarm;
     setAlarm("MAIN_ALARM", detail.c_str());
@@ -258,6 +271,9 @@ void mqttCallback(char* topic, byte* payload, unsigned int len) {
     mainState = String((const char*)(doc["state"] | "UNKNOWN"));
     mainAlarm = String((const char*)(doc["alarm"] | "NONE"));
     mainAlarmSeq = doc["alarmSequence"] | 0U;
+    if (doc["externalSensorOk"].is<bool>()) mainExternalOk = doc["externalSensorOk"].as<bool>();
+    if (doc["upperSensorOk"].is<bool>()) mainUpperOk = doc["upperSensorOk"].as<bool>();
+    if (doc["lowerSensorOk"].is<bool>()) mainLowerOk = doc["lowerSensorOk"].as<bool>();
     return;
   }
 
@@ -283,17 +299,23 @@ void mqttCallback(char* topic, byte* payload, unsigned int len) {
     mainLowerHum = doc["lowerHumidityPct"].is<float>()
                        ? doc["lowerHumidityPct"].as<float>()
                        : NAN;
+    mainUpperOk = doc["upperSensorOk"] | false;
+    mainLowerOk = doc["lowerSensorOk"] | false;
     mainSoil = doc["soilMoisturePct"].is<float>()
            ? doc["soilMoisturePct"].as<float>()
                  : NAN;
+    mainSoilRaw = doc["soilRaw"] | 0;
 
     mainWaterLow = doc["reservoirLow"] | false;
     mainDrainageHigh = doc["drainageHigh"] | false;
-    mainDoorOpen = doc["doorOpen"] | true;
+    mainDoorOpen = doc["doorOpen"] | false;
+    mainManual = doc["manual"] | false;
+    mainManualRemaining = doc["manualRemainingSeconds"] | 0U;
     mainMisterPump = doc["misterPump"] | false;
     mainFogger = doc["fogger"] | false;
     mainHeater = doc["heater"] | false;
     mainDrainagePump = doc["drainagePump"] | false;
+    mainFoodServoActive = doc["foodServoActive"] | false;
     mainFanPwm = doc["fanPwm"] | 0;
 
     mainState = String((const char*)(doc["state"] | "UNKNOWN"));
@@ -324,9 +346,23 @@ void mqttService() {
   const String clientId =
       String(supcfg::DEVICE_ID) + "-" + String((uint32_t)ESP.getEfuseMac(), HEX);
 
-  if (mqtt.connect(clientId.c_str(), supcfg::MQTT_USER, supcfg::MQTT_PASSWORD)) {
+  const bool hasAuth = strlen(supcfg::MQTT_USER) > 0 && strcmp(supcfg::MQTT_USER, "CHANGE_ME") != 0;
+  bool connected = false;
+  if (hasAuth) {
+    connected = mqtt.connect(clientId.c_str(), supcfg::MQTT_USER, supcfg::MQTT_PASSWORD);
+  } else {
+    connected = mqtt.connect(clientId.c_str());
+  }
+
+  if (connected) {
     mqtt.subscribe("vivarium/main/heartbeat", 1);
     mqtt.subscribe("vivarium/main/telemetry", 1);
+    if (alarmRecoveryPending) {
+      publishAlarm("NONE", "System Nominal");
+      alarmRecoveryPending = false;
+    } else if (alarmCode != "NONE") {
+      publishAlarm(alarmCode.c_str(), alarmDetail.c_str());
+    }
   }
 }
 
@@ -345,19 +381,25 @@ void sensorService() {
     mainLower = 22.9f + wobble * 0.7f;
     mainUpperHum = 78.0f;
     mainLowerHum = 81.0f;
+    mainUpperOk = true;
+    mainLowerOk = true;
     mainExternal = 23.8f;
     mainExternalHum = 79.0f;
     mainExternalOk = true;
     mainSoil = 66.0f;
+    mainSoilRaw = 2100;
     mainWaterLow = false;
     mainDrainageHigh = false;
     mainDoorOpen = false;
+    mainManual = false;
+    mainManualRemaining = 0;
     mainMisterPump = false;
     mainFogger = false;
     mainHeater = false;
     mainDrainagePump = false;
+    mainFoodServoActive = false;
     mainFanPwm = 128;
-    mainState = "RUNNING";
+    mainState = "NORMAL";
     mainAlarm = "NONE";
     shtOk = true;
   } else {
@@ -375,7 +417,7 @@ namespace UI {
 constexpr int W = 320;
 constexpr int H = 240;
 
-// High-Contrast Near-Black Green Color Palette for CYD LCD
+// High-Contrast Dark Emerald Green Palette for CYD LCD
 constexpr uint32_t BG        = 0x020603; // Deepest background
 constexpr uint32_t HEADER_BG = 0x06140A; // Dark header/footer green
 constexpr uint32_t CARD_BG   = 0x040B06; // Near-black card background
@@ -383,7 +425,7 @@ constexpr uint32_t CARD_ALT  = 0x0A1C0E; // Active card / tab bg
 constexpr uint32_t BORDER    = 0x102816; // Dark green border
 constexpr uint32_t TEXT      = 0xF8FAFC; // Primary white
 constexpr uint32_t MUTED     = 0x94A3B8; // Secondary muted text
-constexpr uint32_t CYAN      = 0x06B6D4; // Independent sensor accent
+constexpr uint32_t CYAN      = 0x06B6D4; // Ambient sensor accent
 constexpr uint32_t SKY       = 0x38BDF8; // Main telemetry accent
 constexpr uint32_t OK        = 0x10B981; // Emerald green
 constexpr uint32_t WARN      = 0xF59E0B; // Amber warning
@@ -412,8 +454,9 @@ struct DynamicRefs {
   lv_obj_t* mainDelta = nullptr;
   lv_obj_t* mainState = nullptr;
   lv_obj_t* dashMister = nullptr;
+  lv_obj_t* dashHeat = nullptr;
   lv_obj_t* dashFan = nullptr;
-  lv_obj_t* dashPump = nullptr;
+  lv_obj_t* dashSoil = nullptr;
   lv_obj_t* dashWater = nullptr;
   lv_obj_t* upperTemp = nullptr;
   lv_obj_t* upperHum = nullptr;
@@ -426,13 +469,16 @@ struct DynamicRefs {
   lv_obj_t* climOwnTemp = nullptr;
   lv_obj_t* climOwnHum = nullptr;
   lv_obj_t* climOwnStatus = nullptr;
+  lv_obj_t* climRange = nullptr;
   lv_obj_t* climDelta = nullptr;
   lv_obj_t* climUpper = nullptr;
   lv_obj_t* climLower = nullptr;
   lv_obj_t* climGrad = nullptr;
   lv_obj_t* climSoil = nullptr;
   lv_obj_t* climWater = nullptr;
-  lv_obj_t* climActuators = nullptr;
+  lv_obj_t* climAct1 = nullptr;
+  lv_obj_t* climAct2 = nullptr;
+  lv_obj_t* climAct3 = nullptr;
 
   // Safety
   lv_obj_t* alarmBanner = nullptr;
@@ -440,19 +486,22 @@ struct DynamicRefs {
   lv_obj_t* alarmBannerDetail = nullptr;
   lv_obj_t* checkHb = nullptr;
   lv_obj_t* checkTelem = nullptr;
-  lv_obj_t* checkSht = nullptr;
+  lv_obj_t* checkChamber = nullptr;
+  lv_obj_t* checkAmbient = nullptr;
   lv_obj_t* checkRange = nullptr;
-  lv_obj_t* checkDelta = nullptr;
   lv_obj_t* checkGrad = nullptr;
   lv_obj_t* checkWater = nullptr;
+  lv_obj_t* checkDoor = nullptr;
   lv_obj_t* silenceBtn = nullptr;
   lv_obj_t* silenceBtnLabel = nullptr;
 
   // System
   lv_obj_t* sysWifiSsid = nullptr;
   lv_obj_t* sysWifiIp = nullptr;
+  lv_obj_t* sysWifiRssi = nullptr;
   lv_obj_t* sysMqttStatus = nullptr;
   lv_obj_t* sysMqttBroker = nullptr;
+  lv_obj_t* sysMqttTopics = nullptr;
   lv_obj_t* sysHeap = nullptr;
   lv_obj_t* sysUptime = nullptr;
   lv_obj_t* sysMode = nullptr;
@@ -509,13 +558,14 @@ void navCallback(lv_event_t* event) {
 }
 
 void silenceBtnCallback(lv_event_t*) {
-  if (supcfg::DISPLAY_TEST_MODE && !alarmActive()) {
+  if (alarmActive()) {
+    silenceAlarm(900000); // Silence for 15 minutes
+  } else {
+    // Test beep feedback
     buzzerTone(2200);
-    delay(150);
+    delay(100);
     buzzerOff();
-    return;
   }
-  silenceAlarm(900000); // Silence for 15 minutes
 }
 
 void screenGestureCallback(lv_event_t*) {
@@ -540,7 +590,7 @@ void buildHeader(lv_obj_t* screen) {
   headerTitle = label(bar, "DASHBOARD", &lv_font_montserrat_12, TEXT, 105, 8);
 
   // Status Badge in top right
-  headerBadge = card(bar, 238, 4, 76, 22, OK, OK);
+  headerBadge = card(bar, 236, 4, 78, 22, OK, OK);
   lv_obj_set_style_radius(headerBadge, 4, 0);
   headerBadgeLabel = label(headerBadge, "NOMINAL", &lv_font_montserrat_10, 0x000000, 0, 0);
   lv_obj_center(headerBadgeLabel);
@@ -593,23 +643,24 @@ void refreshNav() {
 void buildPageOverview(lv_obj_t* parent) {
   // Top Row: 2 Hero Cards (Y=2, H=78)
   lv_obj_t* cydCard = card(parent, 4, 2, 153, 78);
-  label(cydCard, "EXTERNAL AMBIENT", &lv_font_montserrat_10, CYAN, 8, 6);
+  label(cydCard, "AMBIENT REFERENCE", &lv_font_montserrat_10, CYAN, 8, 6);
   refs.ownTemp = label(cydCard, "-- °C", &lv_font_montserrat_24, TEXT, 8, 22);
   refs.ownHum = label(cydCard, "-- % RH", &lv_font_montserrat_12, MUTED, 8, 54);
-  refs.ownStatus = label(cydCard, "DHT11 OK", &lv_font_montserrat_10, OK, 88, 56);
+  refs.ownStatus = label(cydCard, "DHT11 OK", &lv_font_montserrat_10, OK, 84, 56);
 
   lv_obj_t* mainCard = card(parent, 163, 2, 153, 78);
-  label(mainCard, "MAIN CHAMBER AVG", &lv_font_montserrat_10, SKY, 8, 6);
+  label(mainCard, "HABITAT AVERAGE", &lv_font_montserrat_10, SKY, 8, 6);
   refs.mainAvg = label(mainCard, "-- °C", &lv_font_montserrat_24, TEXT, 8, 22);
   refs.mainDelta = label(mainCard, "Δ -- °C", &lv_font_montserrat_12, OK, 8, 54);
-  refs.mainState = label(mainCard, "STATE: --", &lv_font_montserrat_10, MUTED, 84, 56);
+  refs.mainState = label(mainCard, "NORMAL", &lv_font_montserrat_10, OK, 80, 56);
 
-  // Middle Quick Bar: Actuators & Water Reservoir (Y=82, H=32)
+  // Middle Quick Bar: Actuators, Soil, and Water / Safety (Y=82, H=32)
   lv_obj_t* actBar = card(parent, 4, 82, 312, 32);
   refs.dashMister = label(actBar, "Mist: OFF", &lv_font_montserrat_10, MUTED, 8, 9);
-  refs.dashFan = label(actBar, "Fan: 0%", &lv_font_montserrat_10, MUTED, 85, 9);
-  refs.dashPump = label(actBar, "Pump: OFF", &lv_font_montserrat_10, MUTED, 155, 9);
-  refs.dashWater = label(actBar, "Water: OK", &lv_font_montserrat_10, OK, 235, 9);
+  refs.dashHeat = label(actBar, "Heat: OFF", &lv_font_montserrat_10, MUTED, 68, 9);
+  refs.dashFan = label(actBar, "Fan: 0%", &lv_font_montserrat_10, MUTED, 128, 9);
+  refs.dashSoil = label(actBar, "Soil: --%", &lv_font_montserrat_10, OK, 184, 9);
+  refs.dashWater = label(actBar, "H2O: OK", &lv_font_montserrat_10, OK, 246, 9);
 
   // Bottom Row: 3 Status Cards (Y=116, H=54)
   lv_obj_t* upCard = card(parent, 4, 116, 100, 54);
@@ -629,23 +680,29 @@ void buildPageOverview(lv_obj_t* parent) {
 }
 
 void buildPageClimate(lv_obj_t* parent) {
+  // Left Card: Ambient Reference Sensor
   lv_obj_t* left = card(parent, 4, 2, 153, 168);
-  label(left, "EXTERNAL AMBIENT DHT11", &lv_font_montserrat_10, CYAN, 8, 6);
+  label(left, "AMBIENT REFERENCE", &lv_font_montserrat_10, CYAN, 8, 6);
   refs.climOwnTemp = label(left, "-- °C", &lv_font_montserrat_24, TEXT, 8, 22);
   refs.climOwnHum = label(left, "-- % RH", &lv_font_montserrat_14, MUTED, 8, 52);
-  refs.climOwnStatus = label(left, "Range: VALID", &lv_font_montserrat_10, OK, 8, 80);
-  refs.climDelta = label(left, "Array Δ: -- °C", &lv_font_montserrat_12, OK, 8, 104);
-  label(left, "Main Controller GPIO", &lv_font_montserrat_10, MUTED, 8, 138);
+  refs.climOwnStatus = label(left, "DHT11: SENSOR OK", &lv_font_montserrat_10, OK, 8, 74);
+  refs.climRange = label(left, "Range: 5-40°C [PASS]", &lv_font_montserrat_10, OK, 8, 92);
+  refs.climDelta = label(left, "Habitat Δ: -- °C", &lv_font_montserrat_10, OK, 8, 110);
+  label(left, "DHT11 @ Main GPIO 4", &lv_font_montserrat_10, MUTED, 8, 134);
+  label(left, "Reference Check Only", &lv_font_montserrat_10, MUTED, 8, 150);
 
+  // Right Card: Main Enclosure Array & Actuators
   lv_obj_t* right = card(parent, 163, 2, 153, 168);
-  label(right, "MAIN ARRAY & ACTUATORS", &lv_font_montserrat_10, SKY, 8, 6);
-  refs.climUpper = label(right, "Upper: -- °C | --%", &lv_font_montserrat_12, TEXT, 8, 24);
-  refs.climLower = label(right, "Lower: -- °C | --%", &lv_font_montserrat_12, TEXT, 8, 44);
-  refs.climGrad = label(right, "Gradient: -- °C", &lv_font_montserrat_12, OK, 8, 64);
-  refs.climSoil = label(right, "Soil: M1: --% | M2: --%", &lv_font_montserrat_12, MUTED, 8, 84);
-  refs.climWater = label(right, "Water: Reservoir OK", &lv_font_montserrat_12, OK, 8, 104);
-  refs.climActuators = label(right, "Actuators: All OFF", &lv_font_montserrat_12, TEXT, 8, 124);
-  label(right, "Limit: Gr<8.0°C", &lv_font_montserrat_10, MUTED, 8, 148);
+  label(right, "HABITAT ARRAY & STATE", &lv_font_montserrat_10, SKY, 8, 6);
+  refs.climUpper = label(right, "Upper: -- °C | --%", &lv_font_montserrat_10, TEXT, 8, 22);
+  refs.climLower = label(right, "Lower: -- °C | --%", &lv_font_montserrat_10, TEXT, 8, 38);
+  refs.climGrad = label(right, "Gradient: -- °C (OK)", &lv_font_montserrat_10, OK, 8, 54);
+  refs.climSoil = label(right, "Soil: --% (Moist)", &lv_font_montserrat_10, OK, 8, 70);
+  refs.climWater = label(right, "Fluids: Reservoir OK", &lv_font_montserrat_10, OK, 8, 86);
+  refs.climAct1 = label(right, "Mist: OFF | Fog: OFF", &lv_font_montserrat_10, MUTED, 8, 106);
+  refs.climAct2 = label(right, "Heat: OFF | Fan: 0%", &lv_font_montserrat_10, MUTED, 8, 122);
+  refs.climAct3 = label(right, "Drain: OFF | Door: OK", &lv_font_montserrat_10, MUTED, 8, 138);
+  label(right, "Limit: Gradient < 8.0°C", &lv_font_montserrat_10, MUTED, 8, 152);
 }
 
 void buildPageSafety(lv_obj_t* parent) {
@@ -654,15 +711,16 @@ void buildPageSafety(lv_obj_t* parent) {
   refs.alarmBannerDetail = label(refs.alarmBanner, "All supervisory safety checks passing.", &lv_font_montserrat_10, MUTED, 10, 22);
 
   lv_obj_t* matrix = card(parent, 4, 46, 312, 78);
-  label(matrix, "REAL-TIME SAFETY MATRIX", &lv_font_montserrat_10, SKY, 8, 4);
+  label(matrix, "REAL-TIME SUPERVISORY MATRIX", &lv_font_montserrat_10, SKY, 8, 4);
 
-  refs.checkHb = label(matrix, "Heartbeat: OK", &lv_font_montserrat_10, OK, 8, 20);
-  refs.checkTelem = label(matrix, "Telemetry: OK", &lv_font_montserrat_10, OK, 160, 20);
-  refs.checkSht = label(matrix, "Ext DHT11: OK", &lv_font_montserrat_10, OK, 8, 36);
-  refs.checkRange = label(matrix, "Plausibility: PASS", &lv_font_montserrat_10, OK, 160, 36);
-  refs.checkDelta = label(matrix, "Ref Only: OK", &lv_font_montserrat_10, OK, 8, 52);
-  refs.checkGrad = label(matrix, "Gradient: PASS", &lv_font_montserrat_10, OK, 160, 52);
-  refs.checkWater = label(matrix, "Reservoir: PASS", &lv_font_montserrat_10, OK, 8, 64);
+  refs.checkHb = label(matrix, "Heartbeat: OK", &lv_font_montserrat_10, OK, 8, 18);
+  refs.checkTelem = label(matrix, "Telemetry: OK", &lv_font_montserrat_10, OK, 160, 18);
+  refs.checkChamber = label(matrix, "Chamber SHT: OK", &lv_font_montserrat_10, OK, 8, 32);
+  refs.checkAmbient = label(matrix, "Ambient DHT: OK", &lv_font_montserrat_10, OK, 160, 32);
+  refs.checkGrad = label(matrix, "Gradient <8°C: PASS", &lv_font_montserrat_10, OK, 8, 46);
+  refs.checkRange = label(matrix, "Temp Limits: PASS", &lv_font_montserrat_10, OK, 160, 46);
+  refs.checkWater = label(matrix, "Reservoir: PASS", &lv_font_montserrat_10, OK, 8, 60);
+  refs.checkDoor = label(matrix, "Door: CLOSED", &lv_font_montserrat_10, OK, 160, 60);
 
   refs.silenceBtn = lv_button_create(parent);
   lv_obj_set_size(refs.silenceBtn, 312, 36);
@@ -675,7 +733,7 @@ void buildPageSafety(lv_obj_t* parent) {
   lv_obj_add_event_cb(refs.silenceBtn, silenceBtnCallback, LV_EVENT_CLICKED, nullptr);
 
   refs.silenceBtnLabel = lv_label_create(refs.silenceBtn);
-  lv_label_set_text(refs.silenceBtnLabel, "BUZZER: ARMED & READY (TAP TO MUTE)");
+  lv_label_set_text(refs.silenceBtnLabel, "BUZZER: ARMED & READY (TAP TO TEST)");
   lv_obj_set_style_text_font(refs.silenceBtnLabel, &lv_font_montserrat_10, 0);
   lv_obj_set_style_text_color(refs.silenceBtnLabel, c(MUTED), 0);
   lv_obj_center(refs.silenceBtnLabel);
@@ -684,13 +742,15 @@ void buildPageSafety(lv_obj_t* parent) {
 void buildPageSystem(lv_obj_t* parent) {
   lv_obj_t* c1 = card(parent, 4, 2, 153, 78);
   label(c1, "WI-FI LINK", &lv_font_montserrat_10, SKY, 8, 6);
-  refs.sysWifiSsid = label(c1, "SSID: --", &lv_font_montserrat_10, TEXT, 8, 24);
-  refs.sysWifiIp = label(c1, "IP: --", &lv_font_montserrat_10, OK, 8, 44);
+  refs.sysWifiSsid = label(c1, "SSID: --", &lv_font_montserrat_10, TEXT, 8, 22);
+  refs.sysWifiIp = label(c1, "IP: --", &lv_font_montserrat_10, OK, 8, 38);
+  refs.sysWifiRssi = label(c1, "Signal: --", &lv_font_montserrat_10, MUTED, 8, 54);
 
   lv_obj_t* c2 = card(parent, 163, 2, 153, 78);
   label(c2, "MQTT BROKER", &lv_font_montserrat_10, SKY, 8, 6);
-  refs.sysMqttBroker = label(c2, supcfg::MQTT_HOST, &lv_font_montserrat_10, TEXT, 8, 24);
-  refs.sysMqttStatus = label(c2, "DISCONNECTED", &lv_font_montserrat_10, WARN, 8, 44);
+  refs.sysMqttBroker = label(c2, supcfg::MQTT_HOST, &lv_font_montserrat_10, TEXT, 8, 22);
+  refs.sysMqttStatus = label(c2, "DISCONNECTED", &lv_font_montserrat_10, WARN, 8, 38);
+  refs.sysMqttTopics = label(c2, "Subs: vivarium/main/#", &lv_font_montserrat_10, MUTED, 8, 54);
 
   lv_obj_t* c3 = card(parent, 4, 82, 153, 84);
   label(c3, "CYD HARDWARE", &lv_font_montserrat_10, SKY, 8, 6);
@@ -729,14 +789,22 @@ void updateDynamic() {
   const uint32_t now = millis();
   const bool hbFresh = lastMainHeartbeatRx && (now - lastMainHeartbeatRx <= supcfg::HEARTBEAT_TIMEOUT_MS);
   const bool telemFresh = lastTelemetryRx && (now - lastTelemetryRx <= supcfg::STALE_TELEMETRY_MS);
+  const bool isSilenced = alarmSilenced && now < alarmSilencedUntil;
 
   // --- Header Badge ---
   if (headerBadge && headerBadgeLabel) {
     if (active) {
-      lv_obj_set_style_bg_color(headerBadge, c(CRIT), 0);
-      lv_obj_set_style_border_color(headerBadge, c(CRIT), 0);
-      lv_label_set_text(headerBadgeLabel, "ALARM");
-      lv_obj_set_style_text_color(headerBadgeLabel, c(TEXT), 0);
+      if (isSilenced) {
+        lv_obj_set_style_bg_color(headerBadge, c(WARN), 0);
+        lv_obj_set_style_border_color(headerBadge, c(WARN), 0);
+        lv_label_set_text(headerBadgeLabel, "MUTED");
+        lv_obj_set_style_text_color(headerBadgeLabel, c(0x000000), 0);
+      } else {
+        lv_obj_set_style_bg_color(headerBadge, c(CRIT), 0);
+        lv_obj_set_style_border_color(headerBadge, c(CRIT), 0);
+        lv_label_set_text(headerBadgeLabel, "ALARM");
+        lv_obj_set_style_text_color(headerBadgeLabel, c(TEXT), 0);
+      }
     } else if (supcfg::DISPLAY_TEST_MODE) {
       lv_obj_set_style_bg_color(headerBadge, c(WARN), 0);
       lv_obj_set_style_border_color(headerBadge, c(WARN), 0);
@@ -754,6 +822,10 @@ void updateDynamic() {
   const bool deltaOk = !isnan(delta) && (fabsf(delta) <= supcfg::MAX_SENSOR_DIFFERENCE_C);
   const float grad = (!isnan(mainUpper) && !isnan(mainLower)) ? fabsf(mainUpper - mainLower) : NAN;
   const bool gradOk = !isnan(grad) && (grad <= supcfg::MAX_MAIN_GRADIENT_C);
+  const bool chamberOk = (mainUpperOk && mainLowerOk) || supcfg::DISPLAY_TEST_MODE;
+  const bool ambientOk = mainExternalOk || supcfg::DISPLAY_TEST_MODE;
+  const bool tempLimitsOk = (!isnan(mainUpper) && mainUpper < 30.0f && mainUpper > 10.0f) &&
+                            (!isnan(mainLower) && mainLower < 30.0f && mainLower > 10.0f);
 
   // --- Page Updates ---
   if (page == OVERVIEW) {
@@ -771,36 +843,63 @@ void updateDynamic() {
       lv_obj_set_style_text_color(refs.mainDelta, c(deltaOk ? OK : WARN), 0);
     }
     if (refs.mainState) {
-      String st = "STATE: " + mainState;
+      String st = mainState;
+      uint32_t stColor = OK;
+      if (mainState == "MANUAL" || mainState == "HEATING" || mainState == "DRAINING" || mainState == "MISTING" || mainState == "FOGGING") {
+        stColor = WARN;
+      } else if (mainState == "OVER_TEMP" || mainState == "SENSOR_FAULT" || mainState == "CONTROLLER_FAULT") {
+        stColor = CRIT;
+      } else if (mainState == "LOW_RESERVOIR") {
+        st = "LOW H2O";
+        stColor = WARN;
+      } else if (mainState == "UNKNOWN") {
+        st = "OFFLINE";
+        stColor = MUTED;
+      }
       lv_label_set_text(refs.mainState, st.c_str());
+      lv_obj_set_style_text_color(refs.mainState, c(stColor), 0);
     }
 
     if (refs.dashMister) {
-      bool misting = mainMisterPump;
-      lv_label_set_text(refs.dashMister, misting ? "Mist: ON" : "Mist: OFF");
-      lv_obj_set_style_text_color(refs.dashMister, c(misting ? SKY : MUTED), 0);
+      if (mainFogger) {
+        lv_label_set_text(refs.dashMister, "Mist: FOG");
+        lv_obj_set_style_text_color(refs.dashMister, c(SKY), 0);
+      } else if (mainMisterPump) {
+        lv_label_set_text(refs.dashMister, "Mist: ON");
+        lv_obj_set_style_text_color(refs.dashMister, c(SKY), 0);
+      } else {
+        lv_label_set_text(refs.dashMister, "Mist: OFF");
+        lv_obj_set_style_text_color(refs.dashMister, c(MUTED), 0);
+      }
+    }
+    if (refs.dashHeat) {
+      lv_label_set_text(refs.dashHeat, mainHeater ? "Heat: ON" : "Heat: OFF");
+      lv_obj_set_style_text_color(refs.dashHeat, c(mainHeater ? WARN : MUTED), 0);
     }
     if (refs.dashFan) {
-      String f = "Fan: " + String((mainFanPwm * 100) / 255) + "%";
+      uint8_t fanPct = (mainFanPwm * 100) / 255;
+      String f = "Fan: " + String(fanPct) + "%";
       lv_label_set_text(refs.dashFan, f.c_str());
       lv_obj_set_style_text_color(refs.dashFan, c(mainFanPwm > 0 ? SKY : MUTED), 0);
     }
-    if (refs.dashPump) {
-      lv_label_set_text(refs.dashPump, mainDrainagePump ? "Drain: ON" : "Drain: OFF");
-      lv_obj_set_style_text_color(refs.dashPump, c(mainDrainagePump ? WARN : MUTED), 0);
+    if (refs.dashSoil) {
+      String s = "Soil: " + fmt(mainSoil, "%", 0);
+      lv_label_set_text(refs.dashSoil, s.c_str());
+      const bool soilOk = !isnan(mainSoil) && mainSoil >= 35.0f && mainSoil <= 75.0f;
+      lv_obj_set_style_text_color(refs.dashSoil, c(soilOk || supcfg::DISPLAY_TEST_MODE ? OK : WARN), 0);
     }
     if (refs.dashWater) {
       if (mainDoorOpen) {
         lv_label_set_text(refs.dashWater, "Door: OPEN");
         lv_obj_set_style_text_color(refs.dashWater, c(WARN), 0);
       } else if (mainWaterLow) {
-        lv_label_set_text(refs.dashWater, "Water: LOW");
-        lv_obj_set_style_text_color(refs.dashWater, c(WARN), 0);
+        lv_label_set_text(refs.dashWater, "H2O: LOW");
+        lv_obj_set_style_text_color(refs.dashWater, c(CRIT), 0);
       } else if (mainDrainageHigh) {
         lv_label_set_text(refs.dashWater, "Drain: HIGH");
         lv_obj_set_style_text_color(refs.dashWater, c(WARN), 0);
       } else {
-        lv_label_set_text(refs.dashWater, "Water: OK");
+        lv_label_set_text(refs.dashWater, "H2O: OK");
         lv_obj_set_style_text_color(refs.dashWater, c(OK), 0);
       }
     }
@@ -813,7 +912,7 @@ void updateDynamic() {
     if (refs.hbAge) {
       String hb = "HB: " + age(lastMainHeartbeatRx);
       lv_label_set_text(refs.hbAge, hb.c_str());
-      lv_obj_set_style_text_color(refs.hbAge, c(hbFresh || supcfg::DISPLAY_TEST_MODE ? TEXT : WARN), 0);
+      lv_obj_set_style_text_color(refs.hbAge, c(hbFresh || supcfg::DISPLAY_TEST_MODE ? TEXT : CRIT), 0);
     }
     if (refs.gradVal) {
       String gr = "Grad: " + fmt(grad, " °C");
@@ -825,12 +924,16 @@ void updateDynamic() {
     if (refs.climOwnTemp) lv_label_set_text(refs.climOwnTemp, fmt(ownTemp, " °C").c_str());
     if (refs.climOwnHum)  lv_label_set_text(refs.climOwnHum, (fmt(ownHum, "%") + " RH").c_str());
     if (refs.climOwnStatus) {
+      lv_label_set_text(refs.climOwnStatus, shtOk ? "DHT11: SENSOR OK" : "DHT11: FAULT");
+      lv_obj_set_style_text_color(refs.climOwnStatus, c(shtOk ? OK : CRIT), 0);
+    }
+    if (refs.climRange) {
       const bool rangeOk = !isnan(ownTemp) && ownTemp >= supcfg::MIN_SENSOR_TEMP_C && ownTemp <= supcfg::MAX_SENSOR_TEMP_C;
-      lv_label_set_text(refs.climOwnStatus, rangeOk ? "Range [5-40°C]: VALID" : "Range [5-40°C]: FAULT");
-      lv_obj_set_style_text_color(refs.climOwnStatus, c(rangeOk ? OK : CRIT), 0);
+      lv_label_set_text(refs.climRange, rangeOk ? "Range: 5-40°C [PASS]" : "Range: 5-40°C [FAULT]");
+      lv_obj_set_style_text_color(refs.climRange, c(rangeOk ? OK : CRIT), 0);
     }
     if (refs.climDelta) {
-      String dStr = "Array Δ: " + fmt(delta, " °C") + (deltaOk ? " (PASS)" : " (HIGH)");
+      String dStr = "Habitat Δ: " + fmt(delta, " °C") + (deltaOk ? " (PASS)" : " (HIGH)");
       lv_label_set_text(refs.climDelta, dStr.c_str());
       lv_obj_set_style_text_color(refs.climDelta, c(deltaOk ? OK : WARN), 0);
     }
@@ -849,31 +952,38 @@ void updateDynamic() {
       lv_obj_set_style_text_color(refs.climGrad, c(gradOk ? OK : CRIT), 0);
     }
     if (refs.climSoil) {
-      String s = "External: " + fmt(mainExternal, " °C") + " | Soil: " + fmt(mainSoil, "%");
+      String s = "Soil: " + fmt(mainSoil, "%") + " (" + String(mainSoilRaw) + ")";
       lv_label_set_text(refs.climSoil, s.c_str());
     }
     if (refs.climWater) {
       if (mainDoorOpen) {
-        lv_label_set_text(refs.climWater, "Door: OPEN");
+        lv_label_set_text(refs.climWater, "Door: OPEN (INTERLOCK)");
         lv_obj_set_style_text_color(refs.climWater, c(WARN), 0);
       } else if (mainWaterLow) {
-        lv_label_set_text(refs.climWater, "Water: RESERVOIR LOW");
-        lv_obj_set_style_text_color(refs.climWater, c(WARN), 0);
+        lv_label_set_text(refs.climWater, "Fluids: RESERVOIR LOW");
+        lv_obj_set_style_text_color(refs.climWater, c(CRIT), 0);
       } else if (mainDrainageHigh) {
-        lv_label_set_text(refs.climWater, "Drainage: HIGH");
+        lv_label_set_text(refs.climWater, "Fluids: DRAINAGE HIGH");
         lv_obj_set_style_text_color(refs.climWater, c(WARN), 0);
       } else {
-        lv_label_set_text(refs.climWater, "Water: Reservoir OK");
+        lv_label_set_text(refs.climWater, "Fluids: Reservoir OK");
         lv_obj_set_style_text_color(refs.climWater, c(OK), 0);
       }
     }
-    if (refs.climActuators) {
-      String act = "Mist:" + String(mainMisterPump ? "ON" : "OFF") +
-           " Fog:" + String(mainFogger ? "ON" : "OFF") +
-           " Heat:" + String(mainHeater ? "ON" : "OFF") +
-                   " Fan:" + String((mainFanPwm * 100) / 255) + "%" +
-           " Drain:" + String(mainDrainagePump ? "ON" : "OFF");
-      lv_label_set_text(refs.climActuators, act.c_str());
+    if (refs.climAct1) {
+      String s = "Mist: " + String(mainMisterPump ? "ON" : "OFF") + " | Fog: " + String(mainFogger ? "ON" : "OFF");
+      lv_label_set_text(refs.climAct1, s.c_str());
+      lv_obj_set_style_text_color(refs.climAct1, c(mainMisterPump || mainFogger ? SKY : MUTED), 0);
+    }
+    if (refs.climAct2) {
+      String s = "Heat: " + String(mainHeater ? "ON" : "OFF") + " | Fan: " + String((mainFanPwm * 100) / 255) + "%";
+      lv_label_set_text(refs.climAct2, s.c_str());
+      lv_obj_set_style_text_color(refs.climAct2, c(mainHeater ? WARN : (mainFanPwm > 0 ? SKY : MUTED)), 0);
+    }
+    if (refs.climAct3) {
+      String s = "Drain: " + String(mainDrainagePump ? "ON" : "OFF") + " | Door: " + String(mainDoorOpen ? "OPEN" : "OK");
+      lv_label_set_text(refs.climAct3, s.c_str());
+      lv_obj_set_style_text_color(refs.climAct3, c(mainDoorOpen ? WARN : (mainDrainagePump ? WARN : MUTED)), 0);
     }
   }
   else if (page == SAFETY) {
@@ -904,30 +1014,27 @@ void updateDynamic() {
       lv_label_set_text(refs.checkTelem, s.c_str());
       lv_obj_set_style_text_color(refs.checkTelem, c(telemFresh || supcfg::DISPLAY_TEST_MODE ? OK : WARN), 0);
     }
-    if (refs.checkSht) {
-      lv_label_set_text(refs.checkSht, shtOk ? "Ext DHT11: OK" : "Ext DHT11: FAULT");
-      lv_obj_set_style_text_color(refs.checkSht, c(shtOk ? OK : CRIT), 0);
+    if (refs.checkChamber) {
+      lv_label_set_text(refs.checkChamber, chamberOk ? "Chamber SHT: OK" : "Chamber SHT: FAULT");
+      lv_obj_set_style_text_color(refs.checkChamber, c(chamberOk ? OK : CRIT), 0);
     }
-    if (refs.checkRange) {
-      const bool rangeOk = !isnan(ownTemp) && ownTemp >= supcfg::MIN_SENSOR_TEMP_C && ownTemp <= supcfg::MAX_SENSOR_TEMP_C;
-      lv_label_set_text(refs.checkRange, rangeOk ? "Ext Plausibility: PASS" : "Ext Plausibility: FAIL");
-      lv_obj_set_style_text_color(refs.checkRange, c(rangeOk ? OK : CRIT), 0);
-    }
-    if (refs.checkDelta) {
-      lv_label_set_text(refs.checkDelta, "Ref Only: OK");
-      lv_obj_set_style_text_color(refs.checkDelta, c(OK), 0);
+    if (refs.checkAmbient) {
+      lv_label_set_text(refs.checkAmbient, ambientOk ? "Ambient DHT: OK" : "Ambient DHT: FAULT");
+      lv_obj_set_style_text_color(refs.checkAmbient, c(ambientOk ? OK : WARN), 0);
     }
     if (refs.checkGrad) {
-      lv_label_set_text(refs.checkGrad, gradOk ? "Gradient: PASS" : "Gradient: EXCESSIVE");
+      String s = "Gradient <8°C: " + fmt(grad, "°C");
+      lv_label_set_text(refs.checkGrad, s.c_str());
       lv_obj_set_style_text_color(refs.checkGrad, c(gradOk ? OK : CRIT), 0);
     }
+    if (refs.checkRange) {
+      lv_label_set_text(refs.checkRange, tempLimitsOk || supcfg::DISPLAY_TEST_MODE ? "Temp Limits: PASS" : "Temp Limits: FAULT");
+      lv_obj_set_style_text_color(refs.checkRange, c(tempLimitsOk || supcfg::DISPLAY_TEST_MODE ? OK : CRIT), 0);
+    }
     if (refs.checkWater) {
-      if (mainDoorOpen) {
-        lv_label_set_text(refs.checkWater, "Door: OPEN");
-        lv_obj_set_style_text_color(refs.checkWater, c(WARN), 0);
-      } else if (mainWaterLow) {
-        lv_label_set_text(refs.checkWater, "Reservoir: LOW WATER");
-        lv_obj_set_style_text_color(refs.checkWater, c(WARN), 0);
+      if (mainWaterLow) {
+        lv_label_set_text(refs.checkWater, "Reservoir: LOW");
+        lv_obj_set_style_text_color(refs.checkWater, c(CRIT), 0);
       } else if (mainDrainageHigh) {
         lv_label_set_text(refs.checkWater, "Drainage: HIGH");
         lv_obj_set_style_text_color(refs.checkWater, c(WARN), 0);
@@ -936,11 +1043,14 @@ void updateDynamic() {
         lv_obj_set_style_text_color(refs.checkWater, c(OK), 0);
       }
     }
+    if (refs.checkDoor) {
+      lv_label_set_text(refs.checkDoor, mainDoorOpen ? "Door: OPEN" : "Door: CLOSED");
+      lv_obj_set_style_text_color(refs.checkDoor, c(mainDoorOpen ? WARN : OK), 0);
+    }
 
     if (refs.silenceBtn && refs.silenceBtnLabel) {
-      const bool isSilenced = alarmSilenced && millis() < alarmSilencedUntil;
       if (isSilenced) {
-        const uint32_t remSec = (alarmSilencedUntil - millis()) / 1000U;
+        const uint32_t remSec = (alarmSilencedUntil - now) / 1000U;
         String s = "BUZZER SILENCED (" + String(remSec / 60U) + "m " + String(remSec % 60U) + "s REMAINING)";
         lv_label_set_text(refs.silenceBtnLabel, s.c_str());
         lv_obj_set_style_text_color(refs.silenceBtnLabel, c(WARN), 0);
@@ -949,12 +1059,8 @@ void updateDynamic() {
         lv_label_set_text(refs.silenceBtnLabel, "TAP TO SILENCE BUZZER (15 MIN)");
         lv_obj_set_style_text_color(refs.silenceBtnLabel, c(CRIT), 0);
         lv_obj_set_style_border_color(refs.silenceBtn, c(CRIT), 0);
-      } else if (supcfg::DISPLAY_TEST_MODE) {
-        lv_label_set_text(refs.silenceBtnLabel, "BUZZER: TAP TO TEST TONE");
-        lv_obj_set_style_text_color(refs.silenceBtnLabel, c(CYAN), 0);
-        lv_obj_set_style_border_color(refs.silenceBtn, c(CYAN), 0);
       } else {
-        lv_label_set_text(refs.silenceBtnLabel, "BUZZER: ARMED & READY (TAP TO MUTE)");
+        lv_label_set_text(refs.silenceBtnLabel, "BUZZER: ARMED & READY (TAP TO TEST)");
         lv_obj_set_style_text_color(refs.silenceBtnLabel, c(MUTED), 0);
         lv_obj_set_style_border_color(refs.silenceBtn, c(BORDER), 0);
       }
@@ -969,6 +1075,11 @@ void updateDynamic() {
       String ip = (WiFi.status() == WL_CONNECTED) ? ("IP: " + WiFi.localIP().toString()) : (supcfg::DISPLAY_TEST_MODE ? "IP: 192.168.1.99" : "IP: --");
       lv_label_set_text(refs.sysWifiIp, ip.c_str());
       lv_obj_set_style_text_color(refs.sysWifiIp, c(WiFi.status() == WL_CONNECTED || supcfg::DISPLAY_TEST_MODE ? OK : WARN), 0);
+    }
+    if (refs.sysWifiRssi) {
+      String sig = (WiFi.status() == WL_CONNECTED) ? ("Signal: " + String(WiFi.RSSI()) + " dBm") : (supcfg::DISPLAY_TEST_MODE ? "Signal: -55 dBm" : "Signal: --");
+      lv_label_set_text(refs.sysWifiRssi, sig.c_str());
+      lv_obj_set_style_text_color(refs.sysWifiRssi, c(WiFi.status() == WL_CONNECTED || supcfg::DISPLAY_TEST_MODE ? OK : MUTED), 0);
     }
     if (refs.sysMqttStatus) {
       const bool mqOk = mqtt.connected() || supcfg::DISPLAY_TEST_MODE;
@@ -1119,6 +1230,7 @@ void setup() {
   digitalWrite(supcfg::PIN_TFT_BACKLIGHT, HIGH);
 
   mqtt.setServer(supcfg::MQTT_HOST, supcfg::MQTT_PORT);
+  mqtt.setBufferSize(1536);
   mqtt.setCallback(mqttCallback);
 
   WiFi.mode(WIFI_STA);
