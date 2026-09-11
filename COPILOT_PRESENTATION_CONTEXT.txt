@@ -1,0 +1,46 @@
+LIBBYS VIVARIUM - PRESENTATION CONTEXT
+
+Purpose
+This vivarium is a bespoke, three-device smart vivarium system created to care for and monitor a frog enclosure. This presentation is for a birthday, so the tone should be warm, playful, personal, and polished. Treat it as a celebration of a thoughtful technical project, not an enterprise product pitch.
+
+Project story
+The project brings together embedded hardware, environmental care, monitoring, and a small local web experience. It watches the enclosure's conditions, helps control its climate, records what has happened over time, and makes important states visible both locally and on a dashboard.
+
+Architecture in plain language
+The vivarium has three cooperating parts:
+
+1. Main ESP32-S3 controller: the enclosure's local safety and climate brain. It reads temperature, humidity, soil moisture, water level, drainage level, and door state. It controls misting, fogging, heating, ventilation, drainage, feeding, and a local alarm.
+
+2. Independent ESP32 supervisor: a separate watchdog with its own touchscreen display and buzzer. It checks that the main controller is alive, that telemetry is fresh, and that temperatures remain sensible. It raises attention-grabbing local alarms, but it never takes over climate control.
+
+3. Raspberry Pi service: the friendly data and access layer. It receives live MQTT messages, stores history in SQLite, sends email alerts, serves an authenticated local dashboard, and can provide camera snapshots when configured.
+
+Key design idea
+Safety stays local. The main controller continues enforcing its sensor checks and interlocks even if Wi-Fi, MQTT, the Raspberry Pi, or the supervisor is unavailable. The dashboard can request actions, but it cannot bypass physical safety conditions such as an open door, low water, drainage risk, bad sensors, overheating, output time limits, or manual-control expiry.
+
+Useful details to highlight visually
+- Live environmental sensing across upper and lower enclosure zones.
+- Automated misting, fogging, heating, fan control, drainage protection, and a feeding servo.
+- A separate supervisory screen and buzzer for an independent second opinion.
+- A local dashboard with current status, alarms, history, charts, and optional camera views.
+- MQTT as the lightweight message link between the devices.
+- Failure-aware design: the enclosure does not depend on the dashboard staying online to remain safe.
+
+Presentation direction
+Use clear, human language and explain jargon briefly when it matters. Favor a narrative of care, craft, and clever engineering: sensing the habitat, making careful decisions locally, keeping watch independently, and preserving a living history. Use real photos of the frog, enclosure, electronics, display, and dashboard wherever available. Avoid overstating automation: this is a carefully guarded assistance system, not a replacement for attentive animal care.
+
+Suggested flow
+1. Meet the vivarium and its inhabitant.
+2. The challenge: maintaining a tiny living climate.
+3. Vivarium at a glance: three devices working together.
+4. The local controller: senses, decides, and protects.
+5. The supervisor: an independent set of eyes and ears.
+6. The Pi dashboard: history, alerts, and a window into the habitat.
+7. The safety philosophy: still safe when the network disappears.
+8. A personal closing: a handmade system built with care.
+
+Accuracy guardrails
+- The Pi and supervisor observe, report, and request; they do not replace the main controller as climate safety authority.
+- The browser dashboard communicates through the Pi API, not directly with MQTT.
+- Manual requests are still constrained by firmware interlocks.
+- The system is a local vivarium-control project; avoid claims of cloud dependence, remote autonomous pet care, or medically precise environmental control.
