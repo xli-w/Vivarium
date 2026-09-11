@@ -1,10 +1,12 @@
 import unittest
+from tempfile import TemporaryDirectory
 from dataclasses import replace
 from unittest.mock import Mock, patch
 
 from fastapi import HTTPException
 
 from app.main import Command, command, config, dashboard, documentation, export_data, history, normalize_command, targets
+from app import db
 
 
 class CommandContractTests(unittest.TestCase):
@@ -26,7 +28,7 @@ class CommandContractTests(unittest.TestCase):
     def test_command_requires_successful_broker_publish(self):
         broker = Mock()
         broker.command.return_value = True
-        with patch("app.main.broker", broker):
+        with patch("app.main.broker", broker), patch("app.main.audit_command"):
             result = command(Command(command="mister", value="ON"), None)
         self.assertEqual(result, {"ok": True, "command": "mister", "value": "ON"})
         broker.command.assert_called_once_with("mister", "ON")
@@ -34,7 +36,7 @@ class CommandContractTests(unittest.TestCase):
     def test_command_reports_broker_failure(self):
         broker = Mock()
         broker.command.return_value = False
-        with patch("app.main.broker", broker), self.assertRaises(HTTPException) as raised:
+        with patch("app.main.broker", broker), patch("app.main.audit_command"), self.assertRaises(HTTPException) as raised:
             command(Command(command="mister", value="ON"), None)
         self.assertEqual(raised.exception.status_code, 503)
 
@@ -91,18 +93,17 @@ class CommandContractTests(unittest.TestCase):
                 camera_snapshot(None)
             self.assertEqual(raised.exception.status_code, 502)
 
-    def test_require_token_accepts_header_and_query_param(self):
+    def test_require_token_accepts_header_and_cookie(self):
         from app.main import require_token
         test_config = replace(config, api_token="secret-123")
         with patch("app.main.config", test_config):
             # Valid header
             require_token(x_api_key="secret-123")
-            # Valid query param
-            require_token(token="secret-123")
-            require_token(api_key="secret-123")
+            # Valid cookie
+            require_token(cookie_token="secret-123")
             # Invalid
             with self.assertRaises(HTTPException) as raised:
-                require_token(token="wrong-token")
+                require_token(cookie_token="wrong-token")
             self.assertEqual(raised.exception.status_code, 401)
 
     def test_documentation_renders_known_document(self):
@@ -137,6 +138,25 @@ class CommandContractTests(unittest.TestCase):
             result = export_data(format="json", since=None, until=None, limit=10, _auth=None)
         self.assertEqual(result.media_type, "application/json")
         self.assertIn("soilMoisturePct", result.body.decode())
+
+    def test_export_rejects_reversed_time_range(self):
+        with self.assertRaises(HTTPException) as raised:
+            export_data(format="json", since=20, until=10, limit=10, _auth=None)
+        self.assertEqual(raised.exception.status_code, 400)
+
+    def test_active_alarms_collapse_repeated_events(self):
+        with TemporaryDirectory() as directory, patch.object(db, "config", replace(config, db_path=f"{directory}/test.db")):
+            db.init()
+            db.add("alarms", "supervisor", '{"code":"MAIN_OFFLINE"}', "MAIN_OFFLINE", "CRITICAL", "Main controller heartbeat lost")
+            db.add("alarms", "supervisor", '{"code":"MAIN_OFFLINE"}', "MAIN_OFFLINE", "CRITICAL", "Main controller heartbeat lost")
+            active = db.active_alarms()
+        self.assertEqual(len(active), 1)
+        self.assertEqual(active[0][3], "MAIN_OFFLINE")
+
+    def test_database_health_recovers_after_successful_probe(self):
+        with TemporaryDirectory() as directory, patch.object(db, "config", replace(config, db_path=f"{directory}/test.db")):
+            db.init()
+            self.assertTrue(db.health()["ok"])
 
 
 if __name__ == "__main__":

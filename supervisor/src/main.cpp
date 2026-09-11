@@ -40,6 +40,7 @@ String mainAlarm = "NONE";
 uint32_t mainAlarmSeq = 0;
 bool alarmSilenced = false;
 uint32_t alarmSilencedUntil = 0;
+bool alarmRecoveryPending = false;
 
 float ownTemp = NAN;
 float ownHum = NAN;
@@ -135,7 +136,7 @@ void publishAlarm(const char* code, const char* detail) {
 
   JsonDocument doc;
   doc["source"] = supcfg::DEVICE_ID;
-  doc["severity"] = "CRITICAL";
+  doc["severity"] = strcmp(code, "NONE") == 0 ? "INFO" : "CRITICAL";
   doc["code"] = code;
   doc["detail"] = detail;
   doc["uptimeMs"] = millis();
@@ -165,10 +166,16 @@ void setAlarm(const char* code, const char* detail) {
 }
 
 void clearAlarm() {
+  const bool wasActive = alarmCode != "NONE";
   alarmCode = "NONE";
   alarmDetail = "System Nominal";
   alarmSilenced = false;
   alarmSilencedUntil = 0;
+  if (wasActive) alarmRecoveryPending = true;
+  if (!supcfg::DISPLAY_TEST_MODE && alarmRecoveryPending && mqtt.connected()) {
+    publishAlarm("NONE", "System Nominal");
+    alarmRecoveryPending = false;
+  }
   buzzerOff();
 }
 

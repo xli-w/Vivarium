@@ -6,8 +6,8 @@ Commission in stages. Do not connect pumps, heater, or other high-current loads 
 
 - [ ] Confirm the repository version is v7.
 - [ ] Install the required PlatformIO environments for `controller` and `supervisor`.
-- [ ] Configure controller Wi-Fi, MQTT host, MQTT port, user, password, and `DEVICE_ID` in `controller/include/config.h`.
-- [ ] Configure supervisor Wi-Fi, MQTT host, MQTT port, user, password, and `DEVICE_ID` in `supervisor/include/config.h`.
+- [ ] Replace the `CHANGE_ME` placeholders in `controller/include/config.h` in a local, uncommitted working copy before building; configure Wi-Fi, MQTT host, MQTT port, user, password, and `DEVICE_ID`.
+- [ ] Replace the `CHANGE_ME` placeholders in `supervisor/include/config.h` in a local, uncommitted working copy before building; configure Wi-Fi, MQTT host, MQTT port, user, password, and `DEVICE_ID`.
 - [ ] Set `DISPLAY_TEST_MODE=true` for the isolated supervisor bench test only.
 - [ ] Copy `pi/.env.example` to the Pi service directory as `.env`.
 - [ ] Set a unique non-placeholder `API_TOKEN` and the production MQTT/database/email settings.
@@ -20,7 +20,7 @@ Commission in stages. Do not connect pumps, heater, or other high-current loads 
 - [ ] Verify common ground, regulated logic power, and separate suitable power for pumps, heater driver, and servo.
 - [ ] Verify flyback protection for inductive loads and a correctly rated relay/SSR for the heater.
 - [ ] Verify an independent hardware thermal cutoff for the heater.
-- [ ] Verify the external DHT11 data line on GPIO 2, with a shared ground and the required pull-up.
+- [ ] Verify the external DHT11 data line on GPIO 4, with a shared ground and the required pull-up.
 - [ ] Verify the TCA9548A at address `0x70` and channels 0 upper, 1 lower.
 - [ ] Verify upper/lower SHT4x wiring on the I2C bus: SDA GPIO 8, SCL GPIO 9.
 - [ ] Verify soil input GPIO 1, reservoir GPIO 6, drainage GPIO 7, and door GPIO 10.
@@ -59,10 +59,11 @@ Commission in stages. Do not connect pumps, heater, or other high-current loads 
 - [ ] Start the MQTT broker and verify the controller reconnects.
 - [ ] Confirm live `vivarium/main/heartbeat` messages arrive approximately every 2 seconds.
 - [ ] Confirm live `vivarium/main/telemetry` messages arrive approximately every 5 seconds.
-- [ ] Confirm health messages are not retained and that old retained values are cleared during controller connection.
+- [ ] Confirm health messages are not retained, clear any old retained values at the broker, and verify the controller clears legacy retained health topics on connection.
 - [ ] Start the Pi service and verify it subscribes without errors.
 - [ ] Confirm telemetry is stored in SQLite and alarm records include code, severity, detail, source, and payload.
-- [ ] Verify API requests without the correct `X-API-Key` are rejected.
+- [ ] Repeat a supervisor alarm and confirm history retains both events while Notifications shows only one active alarm.
+- [ ] Verify API requests without the correct `X-API-Key` are rejected; the dashboard shell and rendered documentation are intentionally public.
 - [ ] Verify valid commands publish to `vivarium/main/command` and invalid command values are rejected.
 - [ ] Confirm `/api/health` reports MQTT, database, and freshness state accurately.
 - [ ] Reboot the Pi; the main controller must continue local operation while the Pi is unavailable.
@@ -85,9 +86,10 @@ Commission in stages. Do not connect pumps, heater, or other high-current loads 
 - [ ] Confirm the heater hardware cutoff independently of firmware.
 - [ ] Confirm database retention and available disk space on the Pi.
 - [ ] Confirm email delivery and alert cooldown behavior.
+- [ ] Confirm supervisor alarm recovery produces a `NONE` event and a persisted `RECOVERED` notification in the Pi.
 - [ ] Save the final configuration values, broker address, device IDs, calibration values, and wiring changes with the installation record.
 - [ ] Leave `DISPLAY_TEST_MODE=false` in the production supervisor firmware.
 - [ ] Open the Pi dashboard at `/` and verify the overview, stale-state indicators, fluid levels, alarm list, camera fallback, and command feedback.
 - [ ] Verify navigation across Overview, Notifications, History, and Settings; confirm the Mobile version is reachable from the footer link.
-- [ ] Verify the dashboard requires the configured API key and does not expose it in the URL.
+- [ ] Verify API and camera proxy access requires the configured API key, and that the dashboard does not expose it in a camera URL.
 - [ ] Verify dashboard controls reflect later telemetry rather than assuming a command changed the actuator.

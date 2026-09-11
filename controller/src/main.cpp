@@ -501,6 +501,16 @@ void controlLoop() {
   if (sensors.drainageHigh && !outputs.drainagePump && !runtime.drainageLockout) {
     setDrainagePump(true);
   }
+  if (sensors.drainageHigh) {
+    setMister(false);
+    setFogger(false);
+  }
+
+  if (runtime.heaterLockout && !outputs.heater && climateValid() && !tooHot() &&
+      sensors.upperTemp >= cfg::HEAT_OFF_ABOVE_C &&
+      sensors.lowerTemp >= cfg::HEAT_OFF_ABOVE_C) {
+    runtime.heaterLockout = false;
+  }
 
   if (!climateValid()) {
     stopClimateOutputs();
@@ -572,10 +582,12 @@ void controlLoop() {
   }
 
   if (sensors.drainageHigh && outputs.drainagePump) runtime.state = SystemState::DRAINING;
-  if (runtime.alarm == AlarmCode::DRAINAGE_TIMEOUT && nextAlarm == AlarmCode::NONE) {
+  if (runtime.drainageLockout && runtime.alarm == AlarmCode::DRAINAGE_TIMEOUT &&
+      nextAlarm == AlarmCode::NONE) {
     nextAlarm = AlarmCode::DRAINAGE_TIMEOUT;
   }
-  if (runtime.alarm == AlarmCode::HEATER_TIMEOUT && nextAlarm == AlarmCode::NONE) {
+  if (runtime.heaterLockout && runtime.alarm == AlarmCode::HEATER_TIMEOUT &&
+      nextAlarm == AlarmCode::NONE) {
     nextAlarm = AlarmCode::HEATER_TIMEOUT;
   }
   if (runtime.manualTimeoutAlarm && nextAlarm == AlarmCode::NONE) {

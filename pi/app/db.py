@@ -2,6 +2,7 @@ import os
 import sqlite3
 import threading
 import time
+from contextlib import contextmanager
 
 from .config import config
 
@@ -12,12 +13,21 @@ _last_success = 0.0
 PURGE_INTERVAL_S = 3600
 
 
-def _connect() -> sqlite3.Connection:
+@contextmanager
+def _connect():
     conn = sqlite3.connect(config.db_path, timeout=10)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA busy_timeout=10000")
-    return conn
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=10000")
+        yield conn
+    except Exception:
+        conn.rollback()
+        raise
+    else:
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _record_success() -> None:
@@ -97,6 +107,12 @@ def add(table: str, source: str, payload: str, code: str | None = None,
 
 
 def health() -> dict[str, object]:
+    try:
+        with _connect() as conn:
+            conn.execute("SELECT 1").fetchone()
+        _record_success()
+    except Exception as exc:
+        _record_error(exc)
     with _lock:
         return {
             "ok": _last_error is None,
@@ -137,9 +153,15 @@ def active_alarms() -> list[tuple[int, float, str, str, str, str | None, bool]]:
                   SELECT 1 FROM alarms recovery
                   WHERE recovery.source = alarms.source
                     AND recovery.code = 'RECOVERED'
-                    AND recovery.ts > alarms.ts
+                                        AND recovery.id > alarms.id
                     AND recovery.detail LIKE alarms.code || ' cleared%'
               )
+                            AND NOT EXISTS (
+                                    SELECT 1 FROM alarms newer
+                                    WHERE newer.source = alarms.source
+                                        AND newer.code = alarms.code
+                                        AND newer.id > alarms.id
+                            )
             ORDER BY alarms.id DESC
             """
         ).fetchall()

@@ -55,8 +55,8 @@ class Broker:
         if not msg.payload:
             log.info("Cleared retained MQTT message on %s", msg.topic)
             return
-        if msg.topic in (TOPIC_MAIN_HEARTBEAT, TOPIC_MAIN_TELEMETRY) and getattr(msg, "retain", False) is True:
-            log.info("Ignored retained MQTT health message on %s", msg.topic)
+        if getattr(msg, "retain", False) is True:
+            log.info("Ignored retained MQTT message on %s", msg.topic)
             return
         raw = msg.payload.decode(errors="replace")
         source = "supervisor" if msg.topic.startswith("vivarium/supervisor/") else "main"
@@ -80,14 +80,7 @@ class Broker:
                     log.exception("Failed to store telemetry from %s", msg.topic)
                 self._record_main_alarm_transition(data, raw)
             elif msg.topic in (TOPIC_MAIN_ALARM, TOPIC_SUPERVISOR_ALARM):
-                code = str(data.get("code", "UNKNOWN"))
-                severity = str(data.get("severity", "CRITICAL"))
-                detail = str(data.get("detail", ""))
-                try:
-                    add("alarms", source, raw, code, severity, detail)
-                except Exception:
-                    log.exception("Failed to store alarm from %s", msg.topic)
-                send_alert(code, detail, raw)
+                self._record_alarm_transition(source, data, raw)
         except Exception:
             log.exception("Failed to process MQTT message on %s", msg.topic)
 
@@ -95,12 +88,31 @@ class Broker:
         code = str(data.get("alarm", "NONE"))
         previous = self.active_alarms.get("main")
         if code != "NONE" and code != previous:
+            if previous:
+                add("alarms", "main", payload, "RECOVERED", "INFO", f"{previous} cleared")
             self.active_alarms["main"] = code
             add("alarms", "main", payload, code, "CRITICAL", "Main controller alarm")
             send_alert(code, "Main controller alarm", payload)
         elif code == "NONE" and previous:
             self.active_alarms.pop("main", None)
             add("alarms", "main", payload, "RECOVERED", "INFO", f"{previous} cleared")
+
+    def _record_alarm_transition(self, source: str, data: dict, payload: str) -> None:
+        code = str(data.get("code", "UNKNOWN"))
+        severity = str(data.get("severity", "CRITICAL"))
+        detail = str(data.get("detail", ""))
+        previous = self.active_alarms.get(source)
+        if code == "NONE":
+            if previous:
+                self.active_alarms.pop(source, None)
+                add("alarms", source, payload, "RECOVERED", "INFO", f"{previous} cleared")
+            return
+        if previous and code != previous:
+            add("alarms", source, payload, "RECOVERED", "INFO", f"{previous} cleared")
+        add("alarms", source, payload, code, severity, detail)
+        if code != previous:
+            self.active_alarms[source] = code
+            send_alert(code, detail, payload)
 
     def start(self) -> None:
         start_alert_worker()

@@ -67,7 +67,10 @@ function schedulePolling() {
 
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
-  if (state.token) headers.set("X-API-Key", state.token);
+  if (state.token) {
+    headers.set("X-API-Key", state.token);
+    document.cookie = `terra_api_key=${encodeURIComponent(state.token)}; Path=/; SameSite=Strict`;
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   let response;
@@ -93,7 +96,8 @@ function renderAlarm(data) {
   if (!strip) return;
   const health = data.health || {};
   const mainAlarm = data.heartbeat?.alarm;
-  const alarm = data.supervisorAlarm || (mainAlarm && mainAlarm !== "NONE" ? { code: mainAlarm, detail: "Main controller alarm" } : null);
+  const supervisorAlarm = data.supervisorAlarm?.code === "NONE" ? null : data.supervisorAlarm;
+  const alarm = supervisorAlarm || (mainAlarm && mainAlarm !== "NONE" ? { code: mainAlarm, detail: "Main controller alarm" } : null);
   const fresh = health.mainHeartbeatFresh && health.mainTelemetryFresh;
   if (document.body.classList.contains("stale-data")) {
     strip.classList.remove("alarm");
@@ -145,9 +149,6 @@ function renderCamera(camera) {
   }
   if (camera.streamAvailable) {
     let streamUrl = camera.streamUrl;
-    if (state.token && streamUrl && streamUrl.startsWith("/api/")) {
-      streamUrl += (streamUrl.includes("?") ? "&" : "?") + `token=${encodeURIComponent(state.token)}`;
-    }
     if (img.src !== streamUrl) {
       img.src = streamUrl;
       img.onerror = () => {
@@ -172,11 +173,11 @@ function renderCamera(camera) {
   }
 }
 
-function renderTelemetry(telemetry) {
+function renderTelemetry(telemetry, heartbeat = {}) {
   if (!telemetry) return;
   text("mainState", telemetry.state || "Unknown");
   text("manualMode", telemetry.manual ? "Manual" : "Automatic");
-  text("bootId", telemetry.bootId || "--");
+  text("bootId", heartbeat.bootId || "--");
   const zones = [["external", "externalTemperatureC", "externalHumidityPct", "externalSensorOk"], ["upper", "upperTemperatureC", "upperHumidityPct", "upperSensorOk"], ["lower", "lowerTemperatureC", "lowerHumidityPct", "lowerSensorOk"]];
   for (const [prefix, temp, hum, ok] of zones) {
     text(`${prefix}Temp`, formatTemperature(telemetry[temp]));
@@ -299,7 +300,7 @@ function renderDashboard(data, stale = false, cachedAt = null) {
   });
   renderAlarm(data);
   renderCamera(data.camera);
-  renderTelemetry(data.telemetry);
+  renderTelemetry(data.telemetry, data.heartbeat);
   renderDiagnostics(data);
 }
 

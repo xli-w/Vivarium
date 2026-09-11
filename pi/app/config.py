@@ -58,7 +58,6 @@ class Config:
     smtp_password: str = os.getenv("SMTP_PASSWORD", "")
     camera_enabled: bool = _bool("CAMERA_ENABLED", True)
     camera_device: int | str = _camera_device("CAMERA_DEVICE", "CAMERA_DEVICE_INDEX", 0)
-    camera_device_index: int = 0
     camera_width: int = _int("CAMERA_WIDTH", 1280)
     camera_height: int = _int("CAMERA_HEIGHT", 720)
     camera_fps: int = _int("CAMERA_FPS", 15)
@@ -105,6 +104,18 @@ class Config:
             raise ValueError("CAMERA_TIMEOUT_S must be greater than 0")
         if self.dashboard_poll_s < 1:
             raise ValueError("DASHBOARD_POLL_S must be at least 1")
+        target_ranges = (
+            ("temperature", self.target_temperature_min_c, self.target_temperature_max_c),
+            ("humidity", self.target_humidity_min_pct, self.target_humidity_max_pct),
+            ("soil", self.target_soil_min_pct, self.target_soil_max_pct),
+        )
+        for name, low, high in target_ranges:
+            if not math.isfinite(low) or not math.isfinite(high) or low > high:
+                raise ValueError(f"{name} target range is invalid")
+        if not 0 <= self.target_humidity_min_pct <= 100 or not 0 <= self.target_humidity_max_pct <= 100:
+            raise ValueError("humidity target range must be between 0 and 100")
+        if not 0 <= self.target_soil_min_pct <= 100 or not 0 <= self.target_soil_max_pct <= 100:
+            raise ValueError("soil target range must be between 0 and 100")
 
 
 config = Config()

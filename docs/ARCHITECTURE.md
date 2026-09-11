@@ -27,7 +27,7 @@ flowchart LR
 	supervisor --> buzzer[Local buzzer and display alarm]
 ```
 
-The main controller publishes heartbeat every 2 seconds and telemetry every 5 seconds. These are live, non-retained messages. On MQTT connection the controller clears legacy retained values; consumers ignore empty tombstones and retained health samples so an old message cannot be treated as current.
+The main controller publishes heartbeat every 2 seconds and telemetry every 5 seconds. These are live, non-retained messages. On MQTT connection the controller clears legacy retained values; the Pi ignores empty tombstones and all retained messages so an old message cannot be treated as current. Keep health topics non-retained at the broker because MQTT consumers do not all expose retain metadata. The supervisor publishes alarm events when live and publishes a `NONE` event when an alarm clears.
 
 ## 3. Main controller
 
@@ -41,14 +41,14 @@ The main firmware uses an ESP32-S3 and the following inputs:
 | Reservoir level | GPIO 6, pull-up | `true` means reservoir low. |
 | Drainage level | GPIO 7, pull-up | `true` means drainage level high. |
 | Door reed | GPIO 10, pull-up | `true` means the door is open. |
-| External DHT11 | GPIO 2 | Ambient temperature and humidity reference. |
+| External DHT11 | GPIO 4 | Ambient temperature and humidity reference. |
 | I2C bus | SDA 8, SCL 9 | TCA9548A and the upper/lower SHT4x sensors. |
 
 The upper and lower SHT4x sensors share an address and are isolated through a TCA9548A at address `0x70`:
 
 | Sensor | TCA channel | Published fields |
 | --- | ---: | --- |
-| External ambient DHT11 | GPIO 2 | `externalTemperatureC`, `externalHumidityPct` (Reference & failure check only) |
+| External ambient DHT11 | GPIO 4 | `externalTemperatureC`, `externalHumidityPct` (Reference & failure check only) |
 | Upper zone | 0 | `upperTemperatureC`, `upperHumidityPct` |
 | Lower zone | 1 | `lowerTemperatureC`, `lowerHumidityPct` |
 
@@ -60,9 +60,9 @@ Temperature values outside -20 to 60 C and humidity values outside 0 to 100 perc
 | --- | ---: | --- |
 | Mister pump | GPIO 11 | Door, water, drainage, climate-validity, temperature, cooldown, and maximum-runtime limits. |
 | Fogger | GPIO 12 | Door, water, drainage, climate-validity, temperature, and maximum-runtime limits; it can run only while the mister is active or for a short post-mist wetting window. |
-| Heater | GPIO 13 | Door, temperature, climate validity, lockout, minimum-off time, and maximum-runtime limits. |
+| Heater | GPIO 13 | Door, temperature, climate validity, lockout, minimum-off time, and maximum-runtime limits. A timeout lockout clears only after valid temperatures are back at or above the heater-off threshold. |
 | Fan PWM | GPIO 14 | Door interlock and automatic duty selection. |
-| Drainage pump | GPIO 15 | Starts on high drainage level and locks out after timeout until level clears. |
+| Drainage pump | GPIO 15 | Starts on high drainage level and locks out after timeout until the level clears. A high drainage level also stops mister and fogger outputs immediately. |
 | Food servo | GPIO 16 | Moves from rest to feed position and back, with a one-hour cooldown. |
 | Alarm | GPIO 17 | Mirrors the active main-controller alarm. |
 | Status LED | GPIO 18 | Heartbeat/status indication. |

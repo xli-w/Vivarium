@@ -3,13 +3,14 @@ import json
 import html
 import csv
 import io
+import logging
 import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from urllib.parse import urlsplit
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, StrictInt, StrictStr
@@ -21,6 +22,8 @@ from .db import acknowledge_alarm, active_alarms, audit_command
 from .db import health as database_health
 from .db import init, recent, recent_alarms, recent_commands, telemetry_history
 from .mqtt import TOPIC_MAIN_HEARTBEAT, TOPIC_MAIN_TELEMETRY, TOPIC_SUPERVISOR_ALARM, Broker
+
+log = logging.getLogger(__name__)
 
 ALLOWED_COMMANDS = {"mister", "fogger", "heater", "fan", "feed", "manual", "alloff"}
 SWITCH_COMMANDS = {"mister", "fogger", "heater", "manual"}
@@ -107,14 +110,13 @@ def normalize_command(command: Command) -> str:
 
 def require_token(
     x_api_key: str | None = Header(default=None),
-    token: str | None = Query(default=None),
-    api_key: str | None = Query(default=None, alias="apiKey"),
+    cookie_token: str | None = Cookie(default=None, alias="terra_api_key"),
 ) -> None:
     if not config.api_token:
         raise HTTPException(503, "API token not configured")
     # When called directly in unit tests without FastAPI dependency injection,
-    # omitted parameters default to their Header/Query marker objects.
-    provided_key = next((value for value in (x_api_key, token, api_key) if isinstance(value, str)), None)
+    # omitted parameters default to their Header/Cookie marker objects.
+    provided_key = next((value for value in (x_api_key, cookie_token) if isinstance(value, str)), None)
     if provided_key != config.api_token:
         raise HTTPException(401, "invalid API token")
 
@@ -284,6 +286,8 @@ def export_data(
     limit: int = Query(default=10000, ge=1, le=10000),
     _auth: None = Depends(require_token),
 ) -> Response:
+    if since is not None and until is not None and since > until:
+        raise HTTPException(400, "since must not be after until")
     rows = [{"ts": timestamp, "source": source, "data": _decode_payload(payload)} for timestamp, source, payload in telemetry_history(since, until, limit)]
     if format == "json":
         return Response(content=json.dumps(rows), media_type="application/json", headers={"Content-Disposition": "attachment; filename=terra-telemetry.json"})
@@ -303,7 +307,7 @@ def command(c: Command, _auth: None = Depends(require_token)) -> dict:
     try:
         audit_command(c.command, value, published)
     except Exception:
-        pass
+        log.exception("Failed to audit command %s", c.command)
     if not published:
         raise HTTPException(503, "MQTT broker unavailable")
     return {"ok": True, "command": c.command, "value": value}
