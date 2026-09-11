@@ -1,13 +1,13 @@
 [Unit]
-Description=Frog Terrarium Raspberry Pi Supervisor
+Description=Frog Vivarium Raspberry Pi Supervisor
 After=network-online.target mosquitto.service
 Wants=network-online.target
 
 [Service]
-User=terrarium
-WorkingDirectory=/opt/frog-terrarium/pi
-EnvironmentFile=/opt/frog-terrarium/pi/.env
-ExecStart=/opt/frog-terrarium/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8080
+User=vivarium
+WorkingDirectory=/opt/frog-vivarium/pi
+EnvironmentFile=/opt/frog-vivarium/pi/.env
+ExecStart=/opt/frog-vivarium/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8080
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=15
@@ -27,7 +27,7 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-ReadWritePaths=/var/lib/frog-terrarium
+ReadWritePaths=/var/lib/frog-vivarium
 SystemCallFilter=@system-service
 
 [Install]
