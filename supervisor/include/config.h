@@ -48,8 +48,6 @@ constexpr uint32_t HEARTBEAT_TIMEOUT_MS = 10000;
 constexpr uint32_t STALE_TELEMETRY_MS = 15000;
 constexpr uint32_t ALARM_REPEAT_MS = 900000;
 constexpr uint32_t SENSOR_WARMUP_MS = 5000;
-constexpr uint32_t TOUCH_DEBOUNCE_MS = 120;
-constexpr uint16_t SWIPE_THRESHOLD_PX = 55;
 
 constexpr float MAX_SENSOR_TEMP_C = 40.0f;
 constexpr float MIN_SENSOR_TEMP_C = 5.0f;

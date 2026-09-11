@@ -187,6 +187,8 @@ void clearAlarm() {
   buzzerOff();
 }
 
+uint32_t testChirpUntil = 0;
+
 void silenceAlarm(uint32_t durationMs = 900000) {
   alarmSilenced = true;
   alarmSilencedUntil = millis() + durationMs;
@@ -201,8 +203,16 @@ void supervisionService() {
 
   const uint32_t now = millis();
 
-  if (!lastMainHeartbeatRx ||
-      now - lastMainHeartbeatRx > supcfg::HEARTBEAT_TIMEOUT_MS) {
+  // Guard initial boot warmup before raising offline / stale telemetry alarms
+  if (!lastMainHeartbeatRx) {
+    if (now - bootMs > supcfg::HEARTBEAT_TIMEOUT_MS) {
+      mainOnline = false;
+      setAlarm("MAIN_OFFLINE", "Main controller heartbeat lost");
+    }
+    return;
+  }
+
+  if (now - lastMainHeartbeatRx > supcfg::HEARTBEAT_TIMEOUT_MS) {
     mainOnline = false;
     setAlarm("MAIN_OFFLINE", "Main controller heartbeat lost");
     return;
@@ -210,8 +220,14 @@ void supervisionService() {
 
   mainOnline = true;
 
-  if (!lastTelemetryRx ||
-      now - lastTelemetryRx > supcfg::STALE_TELEMETRY_MS) {
+  if (!lastTelemetryRx) {
+    if (now - bootMs > supcfg::STALE_TELEMETRY_MS) {
+      setAlarm("TELEMETRY_STALE", "Main controller telemetry is stale");
+    }
+    return;
+  }
+
+  if (now - lastTelemetryRx > supcfg::STALE_TELEMETRY_MS) {
     setAlarm("TELEMETRY_STALE", "Main controller telemetry is stale");
     return;
   }
@@ -242,9 +258,19 @@ void supervisionService() {
 }
 
 void buzzerService() {
-  const bool muted = alarmSilenced && millis() < alarmSilencedUntil;
+  const uint32_t now = millis();
+  if (testChirpUntil != 0) {
+    if (now < testChirpUntil) {
+      buzzerTone(2200);
+      return;
+    }
+    testChirpUntil = 0;
+    buzzerOff();
+  }
 
-  if (millis() - bootMs < supcfg::SENSOR_WARMUP_MS ||
+  const bool muted = alarmSilenced && now < alarmSilencedUntil;
+
+  if (now - bootMs < supcfg::SENSOR_WARMUP_MS ||
       supcfg::DISPLAY_TEST_MODE ||
       !alarmActive() ||
       muted) {
@@ -252,7 +278,7 @@ void buzzerService() {
     return;
   }
 
-  buzzerTone((millis() % 3000U) < 250U ? 2200 : 0);
+  buzzerTone((now % 3000U) < 250U ? 2200 : 0);
 }
 
 // ---------- MQTT ----------
@@ -561,10 +587,9 @@ void silenceBtnCallback(lv_event_t*) {
   if (alarmActive()) {
     silenceAlarm(900000); // Silence for 15 minutes
   } else {
-    // Test beep feedback
+    // Non-blocking test chirp feedback
+    testChirpUntil = millis() + 80;
     buzzerTone(2200);
-    delay(100);
-    buzzerOff();
   }
 }
 
@@ -1204,13 +1229,13 @@ void uiService() {
     lastUiData = millis();
     updateDynamic();
   }
-  lv_task_handler();
   static uint32_t lastTick = millis();
   const uint32_t now = millis();
   if (now > lastTick) {
     lv_tick_inc(now - lastTick);
     lastTick = now;
   }
+  lv_timer_handler();
 }
 
 } // namespace UI
