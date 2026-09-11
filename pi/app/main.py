@@ -105,10 +105,17 @@ def normalize_command(command: Command) -> str:
     return "OFF"
 
 
-def require_token(x_api_key: str | None = Header(default=None)) -> None:
+def require_token(
+    x_api_key: str | None = Header(default=None),
+    token: str | None = Query(default=None),
+    api_key: str | None = Query(default=None, alias="apiKey"),
+) -> None:
     if not config.api_token:
         raise HTTPException(503, "API token not configured")
-    if x_api_key != config.api_token:
+    # When called directly in unit tests without FastAPI dependency injection,
+    # omitted parameters default to their Header/Query marker objects.
+    provided_key = next((value for value in (x_api_key, token, api_key) if isinstance(value, str)), None)
+    if provided_key != config.api_token:
         raise HTTPException(401, "invalid API token")
 
 
@@ -336,14 +343,20 @@ def camera_stream(_auth: None = Depends(require_token)):
 
     def _mjpeg_generator():
         interval = 1.0 / max(1, config.camera_fps)
+        consecutive_failures = 0
         while True:
             start_time = time.time()
             frame = usb_camera.get_snapshot()
             if frame:
+                consecutive_failures = 0
                 yield (
                     b"--frame\r\n"
                     b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
                 )
+            else:
+                consecutive_failures += 1
+                if consecutive_failures > 60:
+                    break
             elapsed = time.time() - start_time
             sleep_time = max(0.01, interval - elapsed)
             time.sleep(sleep_time)
@@ -351,8 +364,14 @@ def camera_stream(_auth: None = Depends(require_token)):
     return StreamingResponse(
         _mjpeg_generator(),
         media_type="multipart/x-mixed-replace; boundary=frame",
-        headers={"Cache-Control": "no-store"},
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
     )
 
 
 app.mount("/", StaticFiles(directory=Path(__file__).parent / "static", html=True), name="static")
+
+

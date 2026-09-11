@@ -19,7 +19,6 @@ UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
 PrivateDevices=false
-DeviceAllow=char-video4linux rw
 ProtectSystem=strict
 ProtectHome=true
 ProtectKernelTunables=true

@@ -144,8 +144,12 @@ function renderCamera(camera) {
     frame.replaceChildren(img);
   }
   if (camera.streamAvailable) {
-    if (img.src !== camera.streamUrl) {
-      img.src = camera.streamUrl;
+    let streamUrl = camera.streamUrl;
+    if (state.token && streamUrl && streamUrl.startsWith("/api/")) {
+      streamUrl += (streamUrl.includes("?") ? "&" : "?") + `token=${encodeURIComponent(state.token)}`;
+    }
+    if (img.src !== streamUrl) {
+      img.src = streamUrl;
       img.onerror = () => {
         img.onerror = () => { frame.innerHTML = '<div class="camera-placeholder"><span>CAM</span><p>Camera unavailable</p></div>'; };
         if (camera.snapshotAvailable) {
@@ -157,7 +161,7 @@ function renderCamera(camera) {
       };
     }
   } else {
-    if (!lastCameraRefresh || Date.now() - lastCameraRefresh >= 30000) {
+    if (!lastCameraRefresh || Date.now() - lastCameraRefresh >= 10000) {
       lastCameraRefresh = Date.now();
       api(`${camera.snapshotUrl}?t=${lastCameraRefresh}`).then((response) => response.blob()).then((blob) => {
         if (img.dataset.objectUrl) URL.revokeObjectURL(img.dataset.objectUrl);

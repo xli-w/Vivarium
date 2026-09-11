@@ -91,6 +91,20 @@ class CommandContractTests(unittest.TestCase):
                 camera_snapshot(None)
             self.assertEqual(raised.exception.status_code, 502)
 
+    def test_require_token_accepts_header_and_query_param(self):
+        from app.main import require_token
+        test_config = replace(config, api_token="secret-123")
+        with patch("app.main.config", test_config):
+            # Valid header
+            require_token(x_api_key="secret-123")
+            # Valid query param
+            require_token(token="secret-123")
+            require_token(api_key="secret-123")
+            # Invalid
+            with self.assertRaises(HTTPException) as raised:
+                require_token(token="wrong-token")
+            self.assertEqual(raised.exception.status_code, 401)
+
     def test_documentation_renders_known_document(self):
         result = documentation("operations")
         self.assertEqual(result.status_code, 200)

@@ -33,6 +33,17 @@ def _bool(name: str, default: bool) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _camera_device(name: str, fallback_name: str, default: int | str = 0) -> int | str:
+    raw = os.getenv(name) or os.getenv(fallback_name)
+    if raw is None:
+        return default
+    raw = raw.strip()
+    try:
+        return int(raw)
+    except ValueError:
+        return raw
+
+
 @dataclass(frozen=True)
 class Config:
     mqtt_host: str = os.getenv("MQTT_HOST", "localhost")
@@ -46,7 +57,8 @@ class Config:
     smtp_user: str = os.getenv("SMTP_USER", "")
     smtp_password: str = os.getenv("SMTP_PASSWORD", "")
     camera_enabled: bool = _bool("CAMERA_ENABLED", True)
-    camera_device_index: int = _int("CAMERA_DEVICE_INDEX", 0)
+    camera_device: int | str = _camera_device("CAMERA_DEVICE", "CAMERA_DEVICE_INDEX", 0)
+    camera_device_index: int = 0
     camera_width: int = _int("CAMERA_WIDTH", 1280)
     camera_height: int = _int("CAMERA_HEIGHT", 720)
     camera_fps: int = _int("CAMERA_FPS", 15)
@@ -81,8 +93,10 @@ class Config:
             raise ValueError("HEARTBEAT_TIMEOUT_S must be at least 1")
         if self.telemetry_timeout_s < 1:
             raise ValueError("TELEMETRY_TIMEOUT_S must be at least 1")
-        if self.camera_device_index < 0:
-            raise ValueError("CAMERA_DEVICE_INDEX must not be negative")
+        if isinstance(self.camera_device, int) and self.camera_device < 0:
+            raise ValueError("CAMERA_DEVICE must not be negative")
+        if isinstance(self.camera_device, str) and not self.camera_device.strip():
+            raise ValueError("CAMERA_DEVICE must not be empty")
         if self.camera_width < 1 or self.camera_height < 1:
             raise ValueError("CAMERA_WIDTH and CAMERA_HEIGHT must be positive")
         if self.camera_fps < 1:
