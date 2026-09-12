@@ -13,7 +13,7 @@ The vivarium has three cooperating parts:
 
 2. Independent ESP32 supervisor: a separate watchdog with its own touchscreen display and buzzer. It checks that the main controller is alive, that telemetry is fresh, and that temperatures remain sensible. It raises attention-grabbing local alarms, but it never takes over climate control.
 
-3. Raspberry Pi service: the friendly data and access layer. It receives live MQTT messages, stores history in SQLite, sends email alerts, serves an authenticated local dashboard, and can provide camera snapshots when configured.
+3. Raspberry Pi service: the friendly data and access layer. It receives live MQTT messages, stores history in SQLite, sends email alerts, serves a local dashboard with optional API-token protection, and can provide camera snapshots when configured.
 
 Key design idea
 Safety stays local. The main controller continues enforcing its sensor checks and interlocks even if Wi-Fi, MQTT, the Raspberry Pi, or the supervisor is unavailable. The dashboard can request actions, but it cannot bypass physical safety conditions such as an open door, low water, drainage risk, bad sensors, overheating, output time limits, or manual-control expiry.

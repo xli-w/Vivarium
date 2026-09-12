@@ -24,7 +24,8 @@ Copy `pi/.env.example` to `.env` and set:
 | `SMTP_HOST` / `SMTP_PORT` | SMTP server | empty / `587` |
 | `SMTP_USER` / `SMTP_PASSWORD` | SMTP credentials | empty |
 | `ALERT_COOLDOWN_S` | Minimum repeat interval per alarm code | `900` |
-| `TELEMETRY_RETENTION_DAYS` | SQLite retention window | `30` |
+| `TELEMETRY_RETENTION_DAYS` | SQLite telemetry retention window | `30` |
+| `ALARM_RETENTION_DAYS` | SQLite alarm retention window | `90` |
 | `HEARTBEAT_TIMEOUT_S` | Pi heartbeat freshness threshold | `15` |
 | `TELEMETRY_TIMEOUT_S` | Pi telemetry freshness threshold | `15` |
 | `API_TOKEN` | Optional API key for trusted LAN use | empty |
@@ -136,7 +137,7 @@ X-API-Key: <token>
 {"command":"fan","value":128}
 ```
 
-Responses are `200` for a successful MQTT publish, `400` for invalid commands or values, `401` for an incorrect key, `503` for missing API configuration or unavailable MQTT, and `422` for malformed request bodies.
+Responses are `200` for a successful MQTT publish, `400` for invalid commands or values, `401` for an incorrect key when token protection is enabled, `503` when MQTT is unavailable, and `422` for malformed request bodies.
 
 ### Camera
 
@@ -158,7 +159,7 @@ SQLite contains four tables:
 - `alarm_ack(alarm_id, acknowledged_at)`: notification acknowledgement state.
 - `command_audit(ts, command, value, published)`: command publication attempts. This does not confirm physical actuator state.
 
-Rows older than `TELEMETRY_RETENTION_DAYS` are purged during database writes, at most once per hour. The database uses WAL mode, normal synchronous mode, a 10-second busy timeout, and indexes for time, source, and alarm code.
+Telemetry rows older than `TELEMETRY_RETENTION_DAYS` and alarm rows older than `ALARM_RETENTION_DAYS` are purged during database writes, at most once per hour. The database uses WAL mode, normal synchronous mode, a 10-second busy timeout, and indexes for time, source, and alarm code.
 
 Repeated alarm events remain in history, but the active-notification query exposes only the newest unrecovered event for each source and code. SQLite connections are closed after each operation; a failed transaction is rolled back.
 
@@ -206,9 +207,9 @@ Check upper/lower SHT4x power and channel wiring, TCA9548A selection, soil calib
 
 Check DHT11 power, pull-up, GPIO 4 wiring, and the sensor data line. Climate control remains available, but the external reference should be repaired before relying on ambient comparisons.
 
-### Pi API returns `503`
+### Pi API returns `401` or `503`
 
-For missing API configuration, set `API_TOKEN`. For MQTT failure, check broker reachability and credentials. The main controller does not depend on this API.
+For `401`, send the configured `API_TOKEN` as `X-API-Key`, or leave `API_TOKEN` empty if key checks are not wanted on the trusted home LAN. For `503`, check MQTT reachability and credentials. The main controller does not depend on this API.
 
 ### Alerts are not arriving
 

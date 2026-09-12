@@ -91,5 +91,5 @@ Commission in stages. Do not connect pumps, heater, or other high-current loads 
 - [ ] Leave `DISPLAY_TEST_MODE=false` in the production supervisor firmware.
 - [ ] Open the Pi dashboard at `/` and verify the overview, stale-state indicators, fluid levels, alarm list, camera fallback, and command feedback.
 - [ ] Verify navigation across Overview, Notifications, History, and Settings; confirm the Mobile version is reachable from the footer link.
-- [ ] Verify API and camera proxy access requires the configured API key, and that the dashboard does not expose it in a camera URL.
+- [ ] If `API_TOKEN` is configured, verify API and camera proxy access requires the configured API key; if it is empty, verify the trusted-LAN behavior is intentional. In both cases, confirm the dashboard does not expose the key in a camera URL.
 - [ ] Verify dashboard controls reflect later telemetry rather than assuming a command changed the actuator.

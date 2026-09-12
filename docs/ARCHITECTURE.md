@@ -121,7 +121,7 @@ The display hardware is a CYD ESP32-2432S028R using LVGL, TFT_eSPI, and XPT2046.
 
 The Pi service connects to MQTT as `frog-pi-supervisor`, subscribes to the main heartbeat, main telemetry, main alarm, and supervisor alarm topics, and maintains an in-memory latest snapshot with receive ages. It stores telemetry and alarms in SQLite and sends alert emails through a bounded asynchronous worker with retries and per-code cooldown.
 
-The service exposes authenticated endpoints on port 8080 and serves the dashboard from the same origin. The dashboard uses polling, displays live state and alarms, requests camera snapshots through the Pi when configured, and sends commands only through the validated API. It does not write directly to MQTT from browser code and does not claim that command publication equals physical actuator confirmation. See [Operations and API](OPERATIONS.md) for the complete contract.
+The service exposes endpoints on port 8080 and serves the dashboard from the same origin. API-token protection is optional for a trusted home LAN. The dashboard uses polling, displays live state and alarms, requests camera snapshots through the Pi when configured, and sends commands only through the validated API. It does not write directly to MQTT from browser code and does not claim that command publication equals physical actuator confirmation. See [Operations and API](OPERATIONS.md) for the complete contract.
 
 ## 6. Failure behavior
 
