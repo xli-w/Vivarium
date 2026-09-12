@@ -71,6 +71,25 @@ void setAlarm(AlarmCode alarm) {
   outputs.alarm = alarm != AlarmCode::NONE;
 }
 
+uint8_t alarmPriority(AlarmCode alarm) {
+  switch (alarm) {
+    case AlarmCode::OVER_TEMP: return 100;
+    case AlarmCode::SENSOR_FAULT: return 90;
+    case AlarmCode::DOOR_OPEN: return 80;
+    case AlarmCode::WATER_LOW: return 70;
+    case AlarmCode::DRAINAGE_TIMEOUT: return 60;
+    case AlarmCode::HEATER_TIMEOUT: return 50;
+    case AlarmCode::EXTERNAL_SENSOR_FAULT: return 40;
+    case AlarmCode::MANUAL_TIMEOUT: return 30;
+    case AlarmCode::OUTPUT_FAULT: return 20;
+    default: return 0;
+  }
+}
+
+void selectAlarm(AlarmCode& selected, AlarmCode candidate) {
+  if (alarmPriority(candidate) > alarmPriority(selected)) selected = candidate;
+}
+
 void setMister(bool on) {
   const bool wasOn = outputs.misterPump;
   if (on && (sensors.doorOpen || sensors.reservoirLow || sensors.drainageHigh)) on = false;
@@ -489,9 +508,9 @@ void controlLoop() {
   readFastInterlocks();
   enforceOutputTimeouts();
   const bool manualTimedOut = expireManualMode();
-  if (manualTimedOut) nextAlarm = AlarmCode::MANUAL_TIMEOUT;
+  if (manualTimedOut) selectAlarm(nextAlarm, AlarmCode::MANUAL_TIMEOUT);
   if (!sensors.externalOk || !fresh(sensors.externalUpdatedAt)) {
-    nextAlarm = AlarmCode::EXTERNAL_SENSOR_FAULT;
+    selectAlarm(nextAlarm, AlarmCode::EXTERNAL_SENSOR_FAULT);
   }
 
   if (!sensors.drainageHigh) {
@@ -515,21 +534,21 @@ void controlLoop() {
   if (!climateValid()) {
     stopClimateOutputs();
     runtime.state = SystemState::SENSOR_FAULT;
-    nextAlarm = AlarmCode::SENSOR_FAULT;
+    selectAlarm(nextAlarm, AlarmCode::SENSOR_FAULT);
   } else if (tooHot()) {
     setMister(false);
     setFogger(false);
     setHeater(false);
     setFan(cfg::EMERGENCY_FAN_PWM);
     runtime.state = SystemState::OVER_TEMP;
-    nextAlarm = AlarmCode::OVER_TEMP;
+    selectAlarm(nextAlarm, AlarmCode::OVER_TEMP);
   } else if (sensors.doorOpen) {
     setMister(false);
     setFogger(false);
     setFan(0);
     setHeater(false);
-    runtime.state = SystemState::MANUAL;
-    nextAlarm = AlarmCode::DOOR_OPEN;
+    runtime.state = SystemState::DOOR_OPEN;
+    selectAlarm(nextAlarm, AlarmCode::DOOR_OPEN);
   } else {
     const float maxHumidity = max(sensors.upperHumidity, sensors.lowerHumidity);
     const bool moistureDemand = sensors.soilMoisture < cfg::SOIL_START_PCT;
@@ -539,7 +558,7 @@ void controlLoop() {
     if (sensors.reservoirLow) {
       setMister(false);
       setFogger(false);
-      nextAlarm = AlarmCode::WATER_LOW;
+      selectAlarm(nextAlarm, AlarmCode::WATER_LOW);
       runtime.state = SystemState::LOW_RESERVOIR;
     } else if (!runtime.manual) {
       if (moistureDemand && !outputs.misterPump &&
@@ -582,16 +601,14 @@ void controlLoop() {
   }
 
   if (sensors.drainageHigh && outputs.drainagePump) runtime.state = SystemState::DRAINING;
-  if (runtime.drainageLockout && runtime.alarm == AlarmCode::DRAINAGE_TIMEOUT &&
-      nextAlarm == AlarmCode::NONE) {
-    nextAlarm = AlarmCode::DRAINAGE_TIMEOUT;
+  if (runtime.drainageLockout && runtime.alarm == AlarmCode::DRAINAGE_TIMEOUT) {
+    selectAlarm(nextAlarm, AlarmCode::DRAINAGE_TIMEOUT);
   }
-  if (runtime.heaterLockout && runtime.alarm == AlarmCode::HEATER_TIMEOUT &&
-      nextAlarm == AlarmCode::NONE) {
-    nextAlarm = AlarmCode::HEATER_TIMEOUT;
+  if (runtime.heaterLockout && runtime.alarm == AlarmCode::HEATER_TIMEOUT) {
+    selectAlarm(nextAlarm, AlarmCode::HEATER_TIMEOUT);
   }
-  if (runtime.manualTimeoutAlarm && nextAlarm == AlarmCode::NONE) {
-    nextAlarm = AlarmCode::MANUAL_TIMEOUT;
+  if (runtime.manualTimeoutAlarm) {
+    selectAlarm(nextAlarm, AlarmCode::MANUAL_TIMEOUT);
   }
   setAlarm(nextAlarm);
   writeOutput(cfg::PIN_ALARM, outputs.alarm);

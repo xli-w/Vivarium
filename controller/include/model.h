@@ -5,6 +5,7 @@ enum class SystemState : uint8_t {
   BOOTING,
   NORMAL,
   MANUAL,
+  DOOR_OPEN,
   LOW_RESERVOIR,
   DRAINING,
   MISTING,
@@ -20,6 +21,7 @@ inline const char* stateName(SystemState s) {
     case SystemState::BOOTING: return "BOOTING";
     case SystemState::NORMAL: return "NORMAL";
     case SystemState::MANUAL: return "MANUAL";
+    case SystemState::DOOR_OPEN: return "DOOR_OPEN";
     case SystemState::LOW_RESERVOIR: return "LOW_RESERVOIR";
     case SystemState::DRAINING: return "DRAINING";
     case SystemState::MISTING: return "MISTING";
