@@ -1,4 +1,4 @@
-# TERRA v7 Operations and API
+# Vivarium v7 Operations and API
 
 ## 1. Runtime configuration
 
@@ -27,7 +27,7 @@ Copy `pi/.env.example` to `.env` and set:
 | `TELEMETRY_RETENTION_DAYS` | SQLite retention window | `30` |
 | `HEARTBEAT_TIMEOUT_S` | Pi heartbeat freshness threshold | `15` |
 | `TELEMETRY_TIMEOUT_S` | Pi telemetry freshness threshold | `15` |
-| `API_TOKEN` | Required API key | empty |
+| `API_TOKEN` | Optional API key for trusted LAN use | empty |
 | `TARGET_TEMPERATURE_MIN_C` / `TARGET_TEMPERATURE_MAX_C` | Dashboard temperature target band | `20.0` / `26.0` |
 | `TARGET_HUMIDITY_MIN_PCT` / `TARGET_HUMIDITY_MAX_PCT` | Dashboard humidity target band | `60.0` / `85.0` |
 | `TARGET_SOIL_MIN_PCT` / `TARGET_SOIL_MAX_PCT` | Dashboard soil-moisture target band | `35.0` / `70.0` |
@@ -40,7 +40,7 @@ Copy `pi/.env.example` to `.env` and set:
 | `CAMERA_TIMEOUT_S` | Snapshot fetch timeout for remote camera | `3` |
 | `DASHBOARD_POLL_S` | Browser dashboard refresh interval | `5` |
 
-The service refuses API access when `API_TOKEN` is empty. Use a long, unique value. API clients send it as the `X-API-Key` header. The dashboard also stores it in a same-origin `terra_api_key` cookie so camera images can authenticate without putting the key in a URL.
+When `API_TOKEN` is set, API clients may send it as the `X-API-Key` header. If the token is left empty, the dashboard and API remain available on the local trusted LAN without extra key checks. This is intentionally a simple home-network setup.
 
 ## 2. MQTT contract
 
@@ -76,7 +76,7 @@ The main controller independently rechecks safety conditions. A successful API r
 
 ## 4. HTTP API
 
-The systemd service runs FastAPI through Uvicorn on `0.0.0.0:8080`. The dashboard shell, static assets, and rendered documentation are public. Every `/api/*` endpoint and both camera proxy endpoints require authentication. API clients use `X-API-Key`; the dashboard uses that header for API calls and a same-origin `terra_api_key` cookie for camera images.
+The systemd service runs FastAPI through Uvicorn on `0.0.0.0:8080`. The dashboard shell, static assets, and rendered documentation are public. When `API_TOKEN` is configured, `/api/*` requests accept `X-API-Key`; otherwise the local LAN API remains open by design for a trusted home deployment.
 
 The root path `/` serves the dashboard. Available pages are `index.html`, `notifications.html`, `history.html`, `settings.html`, `mobile.html`, `diagnostics.html`, and `events.html`. The service worker caches the static shell for offline display; cached data never enables controls.
 

@@ -112,10 +112,16 @@ class CommandContractTests(unittest.TestCase):
                 require_token(cookie_token="wrong-token")
             self.assertEqual(raised.exception.status_code, 401)
 
+    def test_broker_tracks_startup_state(self):
+        from app.mqtt import Broker
+
+        broker = Broker()
+        self.assertFalse(broker.started)
+
     def test_documentation_renders_known_document(self):
         result = documentation("operations")
         self.assertEqual(result.status_code, 200)
-        self.assertIn("TERRA v7 Operations and API", result.body.decode())
+        self.assertIn("Vivarium v7 Operations and API", result.body.decode())
 
     def test_documentation_rejects_unknown_document(self):
         with self.assertRaises(HTTPException) as raised:

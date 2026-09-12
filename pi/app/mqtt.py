@@ -26,6 +26,7 @@ class Broker:
         self.received_at: dict[str, float] = {}
         self.active_alarms: dict[str, str] = {}
         self.lock = threading.Lock()
+        self.started = False
         self.client = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
             client_id="frog-pi-supervisor",
@@ -116,13 +117,17 @@ class Broker:
 
     def start(self) -> None:
         start_alert_worker()
+        self.started = True
         try:
             self.client.connect_async(config.mqtt_host, config.mqtt_port, 60)
             self.client.loop_start()
+            log.info("MQTT client started for %s:%s", config.mqtt_host, config.mqtt_port)
         except Exception:
+            self.started = False
             log.exception("Failed to start MQTT client")
 
     def stop(self) -> None:
+        self.started = False
         self.client.loop_stop()
         if self.client.is_connected():
             self.client.disconnect()

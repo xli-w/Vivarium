@@ -1,4 +1,4 @@
-# TERRA v7 Commissioning
+# Vivarium v7 Commissioning
 
 Commission in stages. Do not connect pumps, heater, or other high-current loads until the controller has passed the low-risk input and output checks.
 
@@ -10,7 +10,7 @@ Commission in stages. Do not connect pumps, heater, or other high-current loads 
 - [ ] Replace the `CHANGE_ME` placeholders in `supervisor/include/config.h` in a local, uncommitted working copy before building; configure Wi-Fi, MQTT host, MQTT port, user, password, and `DEVICE_ID`.
 - [ ] Set `DISPLAY_TEST_MODE=true` for the isolated supervisor bench test only.
 - [ ] Copy `pi/.env.example` to the Pi service directory as `.env`.
-- [ ] Set a unique non-placeholder `API_TOKEN` and the production MQTT/database/email settings.
+- [ ] Optionally set a non-placeholder `API_TOKEN` for trusted LAN use, then configure the production MQTT/database/email settings.
 - [ ] Verify the MQTT broker allows the three expected client identities and topics.
 - [ ] Record the final GPIO polarity and soil calibration values before installation.
 
@@ -63,7 +63,7 @@ Commission in stages. Do not connect pumps, heater, or other high-current loads 
 - [ ] Start the Pi service and verify it subscribes without errors.
 - [ ] Confirm telemetry is stored in SQLite and alarm records include code, severity, detail, source, and payload.
 - [ ] Repeat a supervisor alarm and confirm history retains both events while Notifications shows only one active alarm.
-- [ ] Verify API requests without the correct `X-API-Key` are rejected; the dashboard shell and rendered documentation are intentionally public.
+- [ ] Verify API access behaves as expected with the configured local token; if no token is set, the dashboard remains usable on the trusted home LAN.
 - [ ] Verify valid commands publish to `vivarium/main/command` and invalid command values are rejected.
 - [ ] Confirm `/api/health` reports MQTT, database, and freshness state accurately.
 - [ ] Reboot the Pi; the main controller must continue local operation while the Pi is unavailable.

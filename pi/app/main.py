@@ -200,7 +200,7 @@ def documentation(document_name: str) -> HTMLResponse:
         f"""<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TERRA - {title}</title>
+<title>Vivarium - {title}</title>
 <style>body{{margin:0;background:#f4f1e8;color:#20251f;font:16px/1.6 system-ui,sans-serif}}main{{max-width:960px;margin:0 auto;padding:32px 20px}}a{{color:#176b5c}}pre{{white-space:pre-wrap;background:#fffdf7;border:1px solid #d7d1c3;padding:24px;overflow:auto}}</style>
 </head><body><main><p><a href="/">Back to dashboard</a></p><nav aria-label="Documentation">{document_links}</nav><h1>{title}</h1><pre>{content}</pre></main></body></html>"""
     )

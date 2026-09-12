@@ -98,8 +98,8 @@ function renderAlarm(data) {
   }
   strip.classList.toggle("loading", !fresh && !alarm);
   strip.classList.toggle("alarm", Boolean(alarm));
-  text("alarmTitle", alarm ? alarm.code || "Alarm" : fresh ? "System Nominal" : "Waiting for telemetry");
-  text("alarmDetail", alarm ? alarm.detail || "Attention required" : fresh ? "All monitored systems are reporting normally." : "The dashboard cannot confirm the current system state.");
+  text("alarmTitle", alarm ? alarm.code || "Alarm" : fresh ? "System normal" : "Waiting for telemetry");
+  text("alarmDetail", alarm ? alarm.detail || "Attention required" : fresh ? "All monitored systems are reporting normally." : "Live controller data has not been confirmed yet.");
 }
 
 function renderCamera(camera) {
@@ -125,10 +125,10 @@ function renderCamera(camera) {
   }
   const available = camera?.snapshotAvailable || camera?.streamAvailable;
   const imageAge = lastCameraRefresh ? age((Date.now() - lastCameraRefresh) / 1000) : "loading";
-  text("cameraState", available ? (camera.streamAvailable ? "Live stream" : `Snapshot / ${imageAge}`) : "Unavailable");
+  text("cameraState", available ? (camera.streamAvailable ? "Live" : `Snapshot / ${imageAge}`) : "Unavailable");
   text("cameraAge", available && !camera.streamAvailable ? `Image ${imageAge}` : available ? "Live" : "No image");
   if (!available) {
-    frame.innerHTML = '<div class="camera-placeholder"><span>CAM</span><p>Camera not configured</p></div>';
+    frame.innerHTML = '<div class="camera-placeholder"><span>CAM</span><p>Camera unavailable</p></div>';
     return;
   }
   let img = frame.querySelector("img");

@@ -1,6 +1,6 @@
 # Vivarium
 
-TERRA is a three-device monitoring, supervision, and local-control system for a vivarium. The system is intentionally layered: the main ESP32-S3 keeps the enclosure safe and climate control local, the independent ESP32 supervisor checks the main controller, and the Raspberry Pi provides storage, alerting, and a protected LAN API.
+Vivarium is a three-device monitoring, supervision, and local-control system for a vivarium. The system is intentionally layered: the main ESP32-S3 keeps the enclosure safe and climate control local, the independent ESP32 supervisor checks the main controller, and the Raspberry Pi provides storage, alerting, and a local LAN dashboard and API.
 
 ## System at a glance
 
@@ -23,7 +23,7 @@ The main controller remains functional when the Pi, broker, or supervisor is una
 - [Operations and API](docs/OPERATIONS.md): configuration, deployment, endpoints, commands, database, alerts, and troubleshooting.
 - [Commissioning](docs/COMMISSIONING.md): staged wiring, first power-up, safety checks, network integration, and acceptance tests.
 
-The Raspberry Pi also hosts the first TERRA web dashboard at `/`. It is an authenticated operational view of the existing MQTT and database state, with camera display, alarm history, chart-ready telemetry, and guarded command requests. It does not replace the main controller or bypass firmware interlocks.
+The Raspberry Pi also hosts the Vivarium web dashboard at `/`. It is a local operational view of the current MQTT and database state, with camera display, alarm history, chart-ready telemetry, and guarded command requests. It does not replace the main controller or bypass firmware interlocks.
 
 ## Repository layout
 

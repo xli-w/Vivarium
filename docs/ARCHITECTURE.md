@@ -1,8 +1,8 @@
-# TERRA v7 System Architecture
+# Vivarium v7 System Architecture
 
 ## 1. Design goals and authority
 
-TERRA separates local safety from observation and remote access.
+Vivarium separates local safety from observation and local access.
 
 | Device | Authority | Can operate alone? | Primary responsibility |
 | --- | --- | --- | --- |
