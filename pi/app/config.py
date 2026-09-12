@@ -67,6 +67,7 @@ class Config:
     dashboard_poll_s: int = _int("DASHBOARD_POLL_S", 5)
     alert_cooldown_s: int = _int("ALERT_COOLDOWN_S", 900)
     telemetry_retention_days: int = _int("TELEMETRY_RETENTION_DAYS", 30)
+    alarm_retention_days: int = _int("ALARM_RETENTION_DAYS", 90)
     heartbeat_timeout_s: int = _int("HEARTBEAT_TIMEOUT_S", 15)
     telemetry_timeout_s: int = _int("TELEMETRY_TIMEOUT_S", 15)
     api_token: str = os.getenv("API_TOKEN", "")
@@ -88,6 +89,8 @@ class Config:
             raise ValueError("ALERT_COOLDOWN_S must not be negative")
         if self.telemetry_retention_days < 1:
             raise ValueError("TELEMETRY_RETENTION_DAYS must be at least 1")
+        if self.alarm_retention_days < 1:
+            raise ValueError("ALARM_RETENTION_DAYS must be at least 1")
         if self.heartbeat_timeout_s < 1:
             raise ValueError("HEARTBEAT_TIMEOUT_S must be at least 1")
         if self.telemetry_timeout_s < 1:

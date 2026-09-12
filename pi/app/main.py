@@ -47,7 +47,39 @@ async def lifespan(_app: FastAPI):
         broker.stop()
 
 
-app = FastAPI(title="Frog Vivarium Supervisor", version="7.0", lifespan=lifespan)
+app = FastAPI(title="Vivarium", version="7.0", lifespan=lifespan)
+
+
+def _health_payload() -> dict:
+    latest = broker.snapshot()
+    ages = broker.ages()
+    heartbeat_age = ages.get(TOPIC_MAIN_HEARTBEAT)
+    telemetry_age = ages.get(TOPIC_MAIN_TELEMETRY)
+    return {
+        "mqttConnected": broker.connected(),
+        "mainHeartbeat": latest.get(TOPIC_MAIN_HEARTBEAT),
+        "mainTelemetry": latest.get(TOPIC_MAIN_TELEMETRY),
+        "supervisorAlarm": latest.get(TOPIC_SUPERVISOR_ALARM),
+        "mainHeartbeatAgeSeconds": heartbeat_age,
+        "mainTelemetryAgeSeconds": telemetry_age,
+        "mainHeartbeatFresh": heartbeat_age is not None and heartbeat_age <= config.heartbeat_timeout_s,
+        "mainTelemetryFresh": telemetry_age is not None and telemetry_age <= config.telemetry_timeout_s,
+        "database": database_health(),
+    }
+
+
+def _dashboard_payload() -> dict:
+    latest = broker.snapshot()
+    ages = broker.ages()
+    return {
+        "health": _health_payload(),
+        "heartbeat": latest.get(TOPIC_MAIN_HEARTBEAT),
+        "telemetry": latest.get(TOPIC_MAIN_TELEMETRY),
+        "supervisorAlarm": latest.get(TOPIC_SUPERVISOR_ALARM),
+        "camera": _camera_metadata(),
+        "pollSeconds": config.dashboard_poll_s,
+        "ages": ages,
+    }
 
 
 def _decode_payload(payload: str) -> dict:
@@ -113,7 +145,7 @@ def require_token(
     cookie_token: str | None = Cookie(default=None, alias="terra_api_key"),
 ) -> None:
     if not config.api_token:
-        raise HTTPException(503, "API token not configured")
+        return None
     # When called directly in unit tests without FastAPI dependency injection,
     # omitted parameters default to their Header/Cookie marker objects.
     provided_key = next((value for value in (x_api_key, cookie_token) if isinstance(value, str)), None)
@@ -176,36 +208,12 @@ def documentation(document_name: str) -> HTMLResponse:
 
 @app.get("/api/health")
 def health(_auth: None = Depends(require_token)) -> dict:
-    latest = broker.snapshot()
-    ages = broker.ages()
-    heartbeat_age = ages.get(TOPIC_MAIN_HEARTBEAT)
-    telemetry_age = ages.get(TOPIC_MAIN_TELEMETRY)
-    return {
-        "mqttConnected": broker.connected(),
-        "mainHeartbeat": latest.get(TOPIC_MAIN_HEARTBEAT),
-        "mainTelemetry": latest.get(TOPIC_MAIN_TELEMETRY),
-        "supervisorAlarm": latest.get(TOPIC_SUPERVISOR_ALARM),
-        "mainHeartbeatAgeSeconds": heartbeat_age,
-        "mainTelemetryAgeSeconds": telemetry_age,
-        "mainHeartbeatFresh": heartbeat_age is not None and heartbeat_age <= config.heartbeat_timeout_s,
-        "mainTelemetryFresh": telemetry_age is not None and telemetry_age <= config.telemetry_timeout_s,
-        "database": database_health(),
-    }
+    return _health_payload()
 
 
 @app.get("/api/dashboard")
 def dashboard(_auth: None = Depends(require_token)) -> dict:
-    latest = broker.snapshot()
-    ages = broker.ages()
-    return {
-        "health": health(),
-        "heartbeat": latest.get(TOPIC_MAIN_HEARTBEAT),
-        "telemetry": latest.get(TOPIC_MAIN_TELEMETRY),
-        "supervisorAlarm": latest.get(TOPIC_SUPERVISOR_ALARM),
-        "camera": _camera_metadata(),
-        "pollSeconds": config.dashboard_poll_s,
-        "ages": ages,
-    }
+    return _dashboard_payload()
 
 
 @app.get("/api/telemetry")

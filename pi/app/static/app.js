@@ -4,7 +4,7 @@ function renderShell() {
   const nav = document.querySelector("[data-dashboard-nav]");
   const footer = document.querySelector("[data-dashboard-footer]");
   if (header) {
-    const eyebrow = header.dataset.eyebrow || "LIBBYS VIVARIUM";
+    const eyebrow = header.dataset.eyebrow || "VIVARIUM";
     const title = header.dataset.title || "Dashboard";
     header.innerHTML = `<div><p class="eyebrow">${eyebrow}</p><h1>${title}</h1></div><div class="connection" id="connectionStatus">Connecting</div>`;
   }
@@ -13,7 +13,7 @@ function renderShell() {
     nav.innerHTML = sections.map(([name, href, label]) => `<a href="${href}"${name === page ? ' class="active"' : ""}>${label}</a>`).join("");
   }
   if (footer) {
-    footer.innerHTML = '<span><strong>Libbys Vivarium |</strong> <a href="/documentation/operations"> Documentation</a></span><span><a href="mobile.html">Mobile Version </a>| Dashboard / polling <b id="pollRate">--</b></span>';
+    footer.innerHTML = '<span><strong>Vivarium |</strong> <a href="/documentation/operations"> Documentation</a></span><span><a href="mobile.html">Mobile version</a> | Dashboard / polling <b id="pollRate">--</b></span>';
   }
   if (!document.querySelector('link[rel="manifest"]')) {
     const manifest = document.createElement("link");
@@ -21,14 +21,17 @@ function renderShell() {
     manifest.href = "/manifest.json";
     document.head.append(manifest);
   }
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+  const isLocalHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || isLocalHost)) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
 }
 
 renderShell();
 
 let storedPreferences = {};
 try { storedPreferences = JSON.parse(localStorage.getItem("terraPreferences") || "{}"); } catch (_) { storedPreferences = {}; }
-const state = { token: sessionStorage.getItem("terraApiKey") || "", preferences: storedPreferences };
+const state = { preferences: storedPreferences };
 
 const $ = (id) => document.getElementById(id);
 const text = (id, value) => { const el = $(id); if (el) el.textContent = value; };
@@ -66,26 +69,13 @@ function schedulePolling() {
 }
 
 async function api(path, options = {}) {
-  const headers = new Headers(options.headers || {});
-  if (state.token) {
-    headers.set("X-API-Key", state.token);
-    document.cookie = `terra_api_key=${encodeURIComponent(state.token)}; Path=/; SameSite=Strict`;
-  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   let response;
   try {
-    response = await fetch(path, { ...options, headers, signal: controller.signal });
+    response = await fetch(path, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timeout);
-  }
-  if (response.status === 401) {
-    const token = window.prompt("Enter the TERRA API key to view the dashboard:");
-    if (token && token !== state.token) {
-      state.token = token;
-      sessionStorage.setItem("terraApiKey", token);
-      return api(path, options);
-    }
   }
   if (!response.ok) throw new Error(await response.text() || `Request failed (${response.status})`);
   return response;

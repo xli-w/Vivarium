@@ -16,6 +16,7 @@ _worker_started = False
 _worker_lock = threading.Lock()
 _worker_thread: threading.Thread | None = None
 MAX_RETRIES = 3
+_dropped_alerts = 0
 
 
 def status() -> dict:
@@ -29,6 +30,7 @@ def status() -> dict:
             if now - sent < config.alert_cooldown_s
         },
         "queueDepth": _queue.qsize(),
+        "droppedAlerts": _dropped_alerts,
     }
 
 
@@ -112,9 +114,11 @@ def stop_alert_worker() -> None:
 
 
 def send_alert(code: str, detail: str, payload: str) -> bool:
+    global _dropped_alerts
     try:
         _queue.put_nowait((code, detail, payload, 0))
         return True
     except queue.Full:
+        _dropped_alerts += 1
         log.error("Alert queue full; dropped alert %s", code)
         return False

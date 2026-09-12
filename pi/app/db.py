@@ -47,9 +47,11 @@ def _purge_if_due(conn: sqlite3.Connection, now: float) -> None:
     global _last_purge
     if now - _last_purge < PURGE_INTERVAL_S:
         return
-    cutoff = now - max(1, config.telemetry_retention_days) * 86400
-    conn.execute("DELETE FROM telemetry WHERE ts < ?", (cutoff,))
-    conn.execute("DELETE FROM alarms WHERE ts < ?", (cutoff,))
+    telemetry_cutoff = now - max(1, config.telemetry_retention_days) * 86400
+    alarm_cutoff = now - max(1, config.alarm_retention_days) * 86400
+    conn.execute("DELETE FROM telemetry WHERE ts < ?", (telemetry_cutoff,))
+    conn.execute("DELETE FROM alarms WHERE ts < ?", (alarm_cutoff,))
+    conn.execute("DELETE FROM command_audit WHERE ts < ?", (alarm_cutoff,))
     _last_purge = now
 
 

@@ -93,6 +93,12 @@ class CommandContractTests(unittest.TestCase):
                 camera_snapshot(None)
             self.assertEqual(raised.exception.status_code, 502)
 
+    def test_require_token_is_optional_when_not_configured(self):
+        from app.main import require_token
+        test_config = replace(config, api_token="")
+        with patch("app.main.config", test_config):
+            self.assertIsNone(require_token())
+
     def test_require_token_accepts_header_and_cookie(self):
         from app.main import require_token
         test_config = replace(config, api_token="secret-123")
