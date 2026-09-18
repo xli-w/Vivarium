@@ -31,7 +31,10 @@ renderShell();
 
 let storedPreferences = {};
 try { storedPreferences = JSON.parse(localStorage.getItem("terraPreferences") || "{}"); } catch (_) { storedPreferences = {}; }
-const state = { preferences: storedPreferences };
+const state = {
+  preferences: storedPreferences,
+  apiToken: sessionStorage.getItem("terraApiKey") || "",
+};
 
 const $ = (id) => document.getElementById(id);
 const text = (id, value) => { const el = $(id); if (el) el.textContent = value; };
@@ -68,17 +71,50 @@ function schedulePolling() {
   pollTimer = setInterval(refresh, Number(state.preferences.pollSeconds || 5) * 1000);
 }
 
-async function api(path, options = {}) {
+async function api(path, options = {}, retry = true) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
-  let response;
+
   try {
-    response = await fetch(path, { ...options, signal: controller.signal });
+    const headers = new Headers(options.headers || {});
+
+    if (!state.apiToken) {
+      const token = window.prompt("Enter Vivarium API key");
+      if (!token) throw new Error("API token required");
+
+      state.apiToken = token.trim();
+      sessionStorage.setItem("terraApiKey", state.apiToken);
+
+      // Also supports authenticated <img src="/api/camera/stream"> requests.
+      document.cookie =
+        `terra_api_key=${encodeURIComponent(state.apiToken)}; ` +
+        "Path=/; SameSite=Strict";
+    }
+
+    headers.set("X-API-Key", state.apiToken);
+
+    const response = await fetch(path, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+
+    if (response.status === 401 && retry) {
+      state.apiToken = "";
+      sessionStorage.removeItem("terraApiKey");
+      document.cookie = "terra_api_key=; Path=/; Max-Age=0; SameSite=Strict";
+
+      return api(path, options, false);
+    }
+
+    if (!response.ok) {
+      throw new Error(await response.text() || `Request failed (${response.status})`);
+    }
+
+    return response;
   } finally {
     clearTimeout(timeout);
   }
-  if (!response.ok) throw new Error(await response.text() || `Request failed (${response.status})`);
-  return response;
 }
 
 function renderAlarm(data) {
