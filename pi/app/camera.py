@@ -152,8 +152,14 @@ class USBCamera:
             return None
         with self._lock:
             cap = self._get_capture()
+
             if cap is None:
-                return None
+                self._release_locked()
+                self._last_probe_time = 0.0
+                cap = self._get_capture()
+
+                if cap is None:
+                    return None
             try:
                 ret, frame = cap.read()
                 if not ret or frame is None or frame.size == 0:

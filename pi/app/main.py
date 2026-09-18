@@ -323,29 +323,24 @@ def command(c: Command, _auth: None = Depends(require_token)) -> dict:
 
 @app.get("/api/camera/snapshot")
 def camera_snapshot(_auth: None = Depends(require_token)) -> Response:
-    if config.camera_enabled:
-        frame_bytes = usb_camera.get_snapshot()
-        if frame_bytes is not None:
-            return Response(content=frame_bytes, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
-        if not config.camera_snapshot_url:
-            raise HTTPException(502, "USB camera snapshot unavailable")
+    if not config.camera_enabled:
+        raise HTTPException(404, "USB camera is not enabled")
 
-    if not config.camera_snapshot_url:
-        raise HTTPException(404, "camera snapshot is not configured")
-    try:
-        request = Request(config.camera_snapshot_url, headers={"User-Agent": "TERRA-dashboard/7"})
-        with urlopen(request, timeout=config.camera_timeout_s) as upstream:
-            content_type = upstream.headers.get_content_type()
-            if content_type not in {"image/jpeg", "image/png", "image/webp"}:
-                raise HTTPException(502, "camera returned an unsupported image type")
-            body = upstream.read(8 * 1024 * 1024 + 1)
-    except HTTPError as exc:
-        raise HTTPException(502, f"camera returned HTTP {exc.code}") from exc
-    except (URLError, TimeoutError, OSError) as exc:
-        raise HTTPException(502, "camera snapshot unavailable") from exc
-    if len(body) > 8 * 1024 * 1024:
-        raise HTTPException(502, "camera snapshot is too large")
-    return Response(content=body, media_type=content_type, headers={"Cache-Control": "no-store"})
+    frame_bytes = usb_camera.get_snapshot()
+
+    if frame_bytes is None:
+        log.error(
+            "USB camera snapshot failed: configured_device=%s active_device=%s",
+            usb_camera.configured_device,
+            usb_camera.active_device,
+        )
+        raise HTTPException(503, "USB camera could not provide a frame")
+
+    return Response(
+        content=frame_bytes,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/api/camera/stream")
@@ -356,22 +351,42 @@ def camera_stream(_auth: None = Depends(require_token)):
     def _mjpeg_generator():
         interval = 1.0 / max(1, config.camera_fps)
         consecutive_failures = 0
+
         while True:
             start_time = time.time()
             frame = usb_camera.get_snapshot()
+
             if frame:
                 consecutive_failures = 0
                 yield (
                     b"--frame\r\n"
-                    b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n"
+                    + frame
+                    + b"\r\n"
                 )
             else:
                 consecutive_failures += 1
-                if consecutive_failures > 60:
+                log.warning(
+                    "USB camera frame failed (%d consecutive failures)",
+                    consecutive_failures,
+                )
+
+                if consecutive_failures >= 5:
+                    log.error("USB camera stream stopped after repeated frame failures")
                     break
+
             elapsed = time.time() - start_time
-            sleep_time = max(0.01, interval - elapsed)
-            time.sleep(sleep_time)
+            time.sleep(max(0.01, interval - elapsed))
+
+    return StreamingResponse(
+        _mjpeg_generator(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
     return StreamingResponse(
         _mjpeg_generator(),
