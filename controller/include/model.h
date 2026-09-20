@@ -42,7 +42,6 @@ enum class AlarmCode : uint8_t {
   DOOR_OPEN,
   OVER_TEMP,
   HEATER_TIMEOUT,
-  FEED_COOLDOWN,
   MANUAL_TIMEOUT,
   OUTPUT_FAULT
 };
@@ -56,7 +55,6 @@ inline const char* alarmName(AlarmCode a) {
     case AlarmCode::DOOR_OPEN: return "DOOR_OPEN";
     case AlarmCode::OVER_TEMP: return "OVER_TEMP";
     case AlarmCode::HEATER_TIMEOUT: return "HEATER_TIMEOUT";
-    case AlarmCode::FEED_COOLDOWN: return "FEED_COOLDOWN";
     case AlarmCode::MANUAL_TIMEOUT: return "MANUAL_TIMEOUT";
     case AlarmCode::OUTPUT_FAULT: return "OUTPUT_FAULT";
     default: return "NONE";
@@ -90,7 +88,6 @@ struct Outputs {
   bool fogger = false;
   bool heater = false;
   bool drainagePump = false;
-  bool foodServoActive = false;
   bool alarm = false;
   uint8_t fan = 0;
 };
@@ -114,9 +111,6 @@ struct Runtime {
   uint32_t heaterStarted = 0;
   uint32_t lastHeaterOff = 0;
   bool heaterLockout = false;
-  uint32_t lastFeed = 0;
-  uint32_t feedStarted = 0;
-  uint8_t feedPhase = 0;
   uint32_t lastWifiAttempt = 0;
   uint32_t lastMqttAttempt = 0;
   uint32_t lastMqttSubscribeAttempt = 0;

@@ -273,8 +273,6 @@ function renderTelemetry(telemetry, heartbeat = {}) {
     });
   }
 
-  updateWidget("feederWidget", telemetry.foodServoActive, "feederStatusBadge", "FEEDING", "REST");
-
   const manualBtn = $("manualModeBtn");
   if (manualBtn) {
     const manual = Boolean(telemetry.manual);
@@ -296,7 +294,7 @@ function renderTelemetry(telemetry, heartbeat = {}) {
 
   const actuatorListEl = $("actuatorList");
   if (actuatorListEl) {
-    const actuators = [["Mister", telemetry.misterPump], ["Fogger", telemetry.fogger], ["Heater", telemetry.heater], ["Drainage", telemetry.drainagePump], ["Fan", `${Math.round((telemetry.fanPwm || 0) / 255 * 100)}%`], ["Feeder", telemetry.foodServoActive]];
+    const actuators = [["Mister", telemetry.misterPump], ["Fogger", telemetry.fogger], ["Heater", telemetry.heater], ["Drainage", telemetry.drainagePump], ["Fan", `${Math.round((telemetry.fanPwm || 0) / 255 * 100)}%`]];
     actuatorListEl.replaceChildren(...actuators.map(([label, value]) => { const el = document.createElement("div"); const active = value === true || (typeof value === "string" && value !== "0%"); el.className = `actuator${active ? " active" : ""}`; const name = document.createElement("span"); name.textContent = label; const state = document.createElement("strong"); state.className = active ? "on" : "off"; state.textContent = typeof value === "boolean" ? (value ? "ON" : "OFF") : value; el.append(name, state); return el; }));
   }
 }

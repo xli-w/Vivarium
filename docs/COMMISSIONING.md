@@ -23,21 +23,20 @@ Commission in stages. Do not connect pumps, heater, or other high-current loads 
 - [ ] Verify the external DHT11 data line on GPIO 4, with a shared ground and the required pull-up.
 - [ ] Verify the TCA9548A at address `0x70` and channels 0 upper, 1 lower.
 - [ ] Verify upper/lower SHT4x wiring on the I2C bus: SDA GPIO 8, SCL GPIO 9.
-- [ ] Verify soil input GPIO 1, reservoir GPIO 6, drainage GPIO 7, and door GPIO 10.
-- [ ] Verify actuator outputs GPIO 11 through 18 against the wiring table in [Architecture](ARCHITECTURE.md).
+- [ ] Verify soil input GPIO 1, mister reservoir GPIO 6, drainage GPIO 7, and door GPIO 10.
+- [ ] Verify actuator outputs GPIO 11, 12, 13, 14, 15, 17, and 18 against the wiring table in [Architecture](ARCHITECTURE.md).
 - [ ] Confirm the configured `OUTPUT_ACTIVE_HIGH`, `DOOR_OPEN_ACTIVE`, `RESERVOIR_LOW_ACTIVE`, and `DRAINAGE_HIGH_ACTIVE` values match the installed hardware.
 
 ## 3. Bring up the main controller
 
 - [ ] Power the controller with actuators disconnected.
-- [ ] Confirm safe boot leaves pumps, heater, fan, drainage pump, alarm, and servo in their safe states.
-- [ ] Confirm the DHT11 provides valid temperature/humidity readings.
+- [ ] Confirm safe boot leaves mister pump, fogger, heater, fan, drainage pump, and alarm in their safe states.
+- [ ] Confirm the external DHT11 provides valid temperature/humidity readings.
 - [ ] Confirm both SHT4x devices initialise independently.
 - [ ] Confirm the soil reading changes across dry and wet reference samples; update `SOIL_DRY` and `SOIL_WET` if needed.
-- [ ] Confirm reservoir-low, drainage-high, and door-open readings have the expected polarity.
+- [ ] Confirm mister-reservoir-low, drainage-high, and door-open readings have the expected polarity.
 - [ ] Connect one actuator at a time through its driver and verify the reported state matches the physical state.
 - [ ] Verify fan PWM with the driver connected, including zero duty and maximum duty.
-- [ ] Verify the servo returns to `SERVO_REST_DEG` and moves to `SERVO_FEED_DEG` only during a feed command.
 
 ## 4. Verify local safety behavior
 
@@ -50,7 +49,6 @@ Commission in stages. Do not connect pumps, heater, or other high-current loads 
 - [ ] Disconnect the external DHT11; `EXTERNAL_SENSOR_FAULT` must be reported while upper/lower climate control remains available.
 - [ ] Verify mister maximum runtime and cooldown, then verify the fogger begins one second into a mist cycle, runs no longer than five seconds, and cannot start unless the mister is active or stopped within the five-second post-mist wetting window.
 - [ ] Verify heater maximum runtime, minimum off time, and lockout behavior.
-- [ ] Verify feeding movement, rest position, and one-hour cooldown.
 - [ ] Send manual ON commands under each interlock condition; no command may bypass a hard safety rule.
 - [ ] Disconnect Wi-Fi while active; local control and protection must continue.
 

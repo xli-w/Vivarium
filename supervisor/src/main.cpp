@@ -66,7 +66,6 @@ bool mainMisterPump = false;
 bool mainFogger = false;
 bool mainHeater = false;
 bool mainDrainagePump = false;
-bool mainFoodServoActive = false;
 uint8_t mainFanPwm = 0;
 
 // ---------- Buzzer ----------
@@ -341,7 +340,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int len) {
     mainFogger = doc["fogger"] | false;
     mainHeater = doc["heater"] | false;
     mainDrainagePump = doc["drainagePump"] | false;
-    mainFoodServoActive = doc["foodServoActive"] | false;
     mainFanPwm = doc["fanPwm"] | 0;
 
     mainState = String((const char*)(doc["state"] | "UNKNOWN"));
@@ -423,7 +421,6 @@ void sensorService() {
     mainFogger = false;
     mainHeater = false;
     mainDrainagePump = false;
-    mainFoodServoActive = false;
     mainFanPwm = 128;
     mainState = "NORMAL";
     mainAlarm = "NONE";

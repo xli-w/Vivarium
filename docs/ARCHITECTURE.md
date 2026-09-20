@@ -38,9 +38,9 @@ The main firmware uses an ESP32-S3 and the following inputs:
 | Input | Pin or bus | Meaning |
 | --- | --- | --- |
 | Soil moisture | GPIO 1 analog | Calibrated percentage between `SOIL_DRY=3200` and `SOIL_WET=1200`. |
-| Reservoir level | GPIO 6, pull-up | `true` means reservoir low. |
-| Drainage level | GPIO 7, pull-up | `true` means drainage level high. |
-| Door reed | GPIO 10, pull-up | `true` means the door is open. |
+| Mister reservoir level | GPIO 6, pull-up | `true` means the mister reservoir is low. |
+| Drainage level | GPIO 7, pull-up | `true` means drainage is high. |
+| Door reed switch | GPIO 10, pull-up | `true` means the door is open. |
 | External DHT11 | GPIO 4 | Ambient temperature and humidity reference. |
 | I2C bus | SDA 8, SCL 9 | TCA9548A and the upper/lower SHT4x sensors. |
 
@@ -58,12 +58,11 @@ Temperature values outside -20 to 60 C and humidity values outside 0 to 100 perc
 
 | Output | Pin | Protection or behavior |
 | --- | ---: | --- |
-| Mister pump | GPIO 11 | Door, water, drainage, climate-validity, temperature, cooldown, and maximum-runtime limits. |
-| Fogger | GPIO 12 | Door, water, drainage, climate-validity, temperature, and maximum-runtime limits; it can run only while the mister is active or for a short post-mist wetting window. |
+| Mister pump | GPIO 11 | Door, low-water, drainage, climate-validity, temperature, cooldown, and maximum-runtime limits. |
+| Fogger | GPIO 12 | Door, low-water, drainage, climate-validity, temperature, and maximum-runtime limits; it can run only while the mister is active or for a short post-mist wetting window. |
 | Heater | GPIO 13 | Door, temperature, climate validity, lockout, minimum-off time, and maximum-runtime limits. A timeout lockout clears only after valid temperatures are back at or above the heater-off threshold. |
 | Fan PWM | GPIO 14 | Door interlock and automatic duty selection. |
 | Drainage pump | GPIO 15 | Starts on high drainage level and locks out after timeout until the level clears. A high drainage level also stops mister and fogger outputs immediately. |
-| Food servo | GPIO 16 | Moves from rest to feed position and back, with a one-hour cooldown. |
 | Alarm | GPIO 17 | Mirrors the active main-controller alarm. |
 | Status LED | GPIO 18 | Heartbeat/status indication. |
 
@@ -98,7 +97,6 @@ Manual commands do not bypass hard interlocks. Manual mode disables automatic cl
 | Drainage maximum runtime | 120 s |
 | Heater maximum runtime | 900 s |
 | Heater minimum off time | 30 s |
-| Feed cooldown | 3600 s |
 | Hard temperature limit | 30 C |
 | Emergency fan duty | 255 / 255 |
 

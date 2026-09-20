@@ -25,7 +25,7 @@ from .mqtt import TOPIC_MAIN_HEARTBEAT, TOPIC_MAIN_TELEMETRY, TOPIC_SUPERVISOR_A
 
 log = logging.getLogger(__name__)
 
-ALLOWED_COMMANDS = {"mister", "fogger", "heater", "fan", "feed", "manual", "alloff"}
+ALLOWED_COMMANDS = {"mister", "fogger", "heater", "fan", "manual", "alloff"}
 SWITCH_COMMANDS = {"mister", "fogger", "heater", "manual"}
 DOCUMENTATION = {
     "architecture": "ARCHITECTURE.md",
@@ -133,10 +133,6 @@ def normalize_command(command: Command) -> str:
         if not isinstance(command.value, str) or command.value.upper() not in {"ON", "OFF"}:
             raise HTTPException(400, "command value must be ON or OFF")
         return command.value.upper()
-    if command.command == "feed":
-        if not isinstance(command.value, str) or command.value.upper() != "ON":
-            raise HTTPException(400, "feed value must be ON")
-        return "ON"
     return "OFF"
 
 

@@ -145,42 +145,6 @@ void setFan(uint8_t pwm) {
 #endif
 }
 
-uint32_t servoDuty(uint8_t degrees) {
-  const uint32_t pulseUs = cfg::SERVO_MIN_US +
-      (static_cast<uint32_t>(cfg::SERVO_MAX_US - cfg::SERVO_MIN_US) * degrees) / 180U;
-  return (pulseUs * 4095U) / 20000U;
-}
-
-void setServo(uint8_t degrees) {
-#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
-  ledcWrite(cfg::PIN_FOOD_SERVO, servoDuty(degrees));
-#else
-  ledcWrite(cfg::PWM_CH_SERVO, servoDuty(degrees));
-#endif
-}
-
-void startFeed() {
-  const uint32_t now = millis();
-  if (runtime.feedPhase != 0 ||
-      (runtime.lastFeed != 0 && now - runtime.lastFeed < cfg::FEED_COOLDOWN_MS)) return;
-  runtime.feedPhase = 1;
-  runtime.feedStarted = now;
-  outputs.foodServoActive = true;
-  setServo(cfg::SERVO_FEED_DEG);
-}
-
-void serviceFeed() {
-  if (runtime.feedPhase == 1 && millis() - runtime.feedStarted >= cfg::FEED_MOVE_MS) {
-    setServo(cfg::SERVO_REST_DEG);
-    runtime.feedPhase = 2;
-    runtime.feedStarted = millis();
-    runtime.lastFeed = millis();
-  } else if (runtime.feedPhase == 2 && millis() - runtime.feedStarted >= cfg::FEED_MOVE_MS) {
-    runtime.feedPhase = 0;
-    outputs.foodServoActive = false;
-  }
-}
-
 void stopClimateOutputs() {
   setMister(false);
   setFogger(false);
@@ -348,7 +312,6 @@ void publishTelemetry() {
   d["heater"] = outputs.heater;
   d["fanPwm"] = outputs.fan;
   d["drainagePump"] = outputs.drainagePump;
-  d["foodServoActive"] = outputs.foodServoActive;
   const bool ok = publishJson("main/telemetry", d);
   if (ok) {
     Serial.printf("[Telemetry] Published seq #%u to vivarium/main/telemetry\n", telemetrySequence);
@@ -383,8 +346,6 @@ void applyCommand(JsonDocument& d) {
     markManualActivity();
     const int requested = constrain(d["value"] | 0, 0, 255);
     setFan(static_cast<uint8_t>(requested));
-  } else if (strcmp(command, "feed") == 0 && on) {
-    startFeed();
   }
 }
 
@@ -633,15 +594,11 @@ void safeOutputsAtBoot() {
   writeOutput(cfg::PIN_STATUS_LED, false);
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
   ledcAttach(cfg::PIN_FAN_PWM, 25000, 8);
-  ledcAttach(cfg::PIN_FOOD_SERVO, 50, 12);
 #else
   ledcSetup(cfg::PWM_CH_FAN, 25000, 8);
   ledcAttachPin(cfg::PIN_FAN_PWM, cfg::PWM_CH_FAN);
-  ledcSetup(cfg::PWM_CH_SERVO, 50, 12);
-  ledcAttachPin(cfg::PIN_FOOD_SERVO, cfg::PWM_CH_SERVO);
 #endif
   setFan(0);
-  setServo(cfg::SERVO_REST_DEG);
 }
 
 void setup() {
@@ -689,7 +646,6 @@ void loop() {
   wifiService();
   mqttService();
   mqtt.loop();
-  serviceFeed();
   if (now - lastSensor >= cfg::SENSOR_INTERVAL_MS) {
     lastSensor = now;
     readSensors();

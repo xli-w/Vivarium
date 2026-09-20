@@ -30,12 +30,10 @@ constexpr uint8_t PIN_FOGGER = 12;
 constexpr uint8_t PIN_HEATER = 13;
 constexpr uint8_t PIN_FAN_PWM = 14;
 constexpr uint8_t PIN_DRAINAGE_PUMP = 15;
-constexpr uint8_t PIN_FOOD_SERVO = 16;
 constexpr uint8_t PIN_ALARM = 17;
 constexpr uint8_t PIN_STATUS_LED = 18;
 
 constexpr uint8_t PWM_CH_FAN = 0;
-constexpr uint8_t PWM_CH_SERVO = 1;
 
 // ===== Signal polarity =====
 constexpr bool RESERVOIR_LOW_ACTIVE = true;
@@ -66,15 +64,7 @@ constexpr uint32_t FOGGER_POST_MIST_MS = 5000;
 constexpr uint32_t DRAINAGE_MAX_RUNTIME_MS = 120000;
 constexpr uint32_t HEATER_MAX_ON_MS = 900000;
 constexpr uint32_t HEATER_MIN_OFF_MS = 30000;
-constexpr uint32_t FEED_COOLDOWN_MS = 3600000;
-constexpr uint32_t FEED_MOVE_MS = 800;
 constexpr uint32_t MANUAL_TIMEOUT_MS = 600000;
-
-// ===== Servo positions =====
-constexpr uint8_t SERVO_REST_DEG = 10;
-constexpr uint8_t SERVO_FEED_DEG = 100;
-constexpr uint16_t SERVO_MIN_US = 500;
-constexpr uint16_t SERVO_MAX_US = 2500;
 
 // ===== Climate targets =====
 constexpr float HARD_TEMP_C = 30.0f;

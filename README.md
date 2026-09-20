@@ -6,8 +6,8 @@ The system is designed around one rule: **safety stays local**. The main control
 
 ## What it does
 
-- Measures upper and lower temperature and humidity, ambient conditions, soil moisture, water level, drainage level, and door state.
-- Controls misting, fogging, heating, ventilation, drainage, feeding, and a local alarm.
+- Measures upper and lower temperature and humidity, external ambient temperature and humidity, soil moisture, mister reservoir level, drainage level, and door state.
+- Controls misting, fogging, heating, ventilation, drainage, and a local alarm.
 - Applies local safeguards for bad or stale sensors, an open door, low water, high drainage, overheating, maximum runtimes, cooldowns, and manual-control expiry.
 - Shows an independent supervisory view on a CYD touchscreen with local buzzer alarms when the main controller is offline, stale, or reporting suspicious conditions.
 - Stores MQTT telemetry and alarm history in SQLite and optionally sends email alerts.
@@ -23,7 +23,7 @@ The system is designed around one rule: **safety stays local**. The main control
 	 |       \                         |  |  \
 	 |        \---- MQTT ------------ CYD  DB  API/email
 	 v
- Pumps, fan, heater, drainage pump, feeder servo, alarm
+ Pumps, fan, heater, misting pump, fogger, drainage pump, alarm
 ```
 
 The main ESP32-S3 is the only climate-control authority. The supervisor observes and raises alarms but never commands actuators. The Pi provides storage, alerts, dashboard access, and command forwarding; it cannot bypass the main controller's firmware safety rules.
@@ -57,7 +57,7 @@ The API token is optional for a trusted home LAN. If `API_TOKEN` is set, the Pi 
 
 ## Hardware and safety
 
-Use properly rated drivers, relays or SSRs, flyback protection, separate servo power, and an independent thermal cutoff for the heater. Firmware safeguards reduce risk but do not replace suitable electrical, mechanical, and thermal protection.
+Use properly rated drivers, relays or SSRs, flyback protection, and an independent thermal cutoff for the heater. Firmware safeguards reduce risk but do not replace suitable electrical and thermal protection.
 
 ## Release state
 

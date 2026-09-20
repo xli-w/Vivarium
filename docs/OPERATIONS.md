@@ -69,7 +69,6 @@ The Pi API validates commands before publishing this JSON shape:
 | `fogger` | `ON` or `OFF` | Request fogger state. An `ON` request is accepted only while the mister is running or during its five-second post-mist window. |
 | `heater` | `ON` or `OFF` | Request heater state. |
 | `fan` | Integer 0 to 255 | Request fan PWM duty. |
-| `feed` | `ON` | Start a feed cycle if cooldown permits. |
 | `manual` | `ON` or `OFF` | `ON` enters manual mode and disables automatic climate demand; `OFF` returns to automatic mode. Manual mode expires after 10 minutes without a manual command. |
 | `alloff` | Any value accepted by API | Stop climate outputs and enter manual mode. Hard interlocks remain active. |
 
